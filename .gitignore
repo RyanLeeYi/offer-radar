@@ -1,0 +1,14 @@
+# 環境與密鑰
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# 本地資料（SQLite + ChromaDB）
+data/

@@ -1,0 +1,67 @@
+{
+  "features": [
+    {
+      "id": "F1",
+      "name": "資料模型 + SQLite schema",
+      "acceptance": "uv run pytest tests/test_models.py 全過：可插入/查詢 offer；offers 表欄位符合 PRD 介面契約（title/content/source_url NOT NULL、valid_to nullable）；source_url+title upsert 不產生重複",
+      "status": "passing",
+      "evidence": "2026-07-08 pytest 15 passed（schema/insert-query/upsert 不重複/驗證/immutable/自建父目錄/bank-provider 契約）；coverage scraper 100%；ruff clean；code review 3 findings 修 2（批量 commit 效率留 F2）"
+    },
+    {
+      "id": "F2",
+      "name": "信用卡爬蟲 ×3 家（國泰、中信、玉山）",
+      "acceptance": "PRD R1：執行 python -m scraper.credit_card 後 offers 表新增/更新 ≥ 30 筆，必含 title/content/source_url/bank/scraped_at；重複執行不重複入庫；某來源失敗時 log ERROR、既有資料保留、非 0 exit code",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F3",
+      "name": "chunker + embedder + ChromaDB ingest",
+      "acceptance": "PRD R3：python -m rag.ingest 後 ChromaDB 筆數 = SQLite 未過期優惠筆數；每 chunk metadata 含 offer_id/valid_to/source_url",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F4",
+      "name": "RAG pipeline（CLI 可問答）",
+      "acceptance": "CLI 跑「去好市多刷哪張卡最划算」回中文答案 + ≥1 筆來源；過期優惠不出現在結果",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F5",
+      "name": "FastAPI /query + /health",
+      "acceptance": "PRD R4+R5：POST /query 回 200 含 answer+sources；無關問題回「目前資料庫沒有相關優惠」且 sources=[]；缺 question/超 500 字回 422；未建庫回 503；Swagger 可測",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F6",
+      "name": "Telegram Bot",
+      "acceptance": "PRD R7：文字訊息 → 呼叫 /query 回 answer+來源連結；/start 回使用說明；非文字訊息回「請用文字提問」",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F7",
+      "name": "電子支付爬蟲 ×2 家（LINE Pay、街口）",
+      "acceptance": "PRD R2：python -m scraper.e_payment 後 ≥ 10 筆，provider 欄位標明支付業者；其餘行為同 R1",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F8",
+      "name": "OpenAI 切換支援",
+      "acceptance": "PRD R6：LLM_PROVIDER=ollama 與 openai 下 R4 均通過；openai 缺 OPENAI_API_KEY 時啟動即 fail fast 並輸出明確錯誤",
+      "status": "failing",
+      "evidence": null
+    },
+    {
+      "id": "F9",
+      "name": "README + 乾淨環境驗證",
+      "acceptance": "乾淨環境 clone 後照 README + ./init.sh 可跑起；.env.example 齊全；pytest 覆蓋率 ≥ 80%；ruff check 無錯誤；PRD 三個範例問題 Telegram 端手動驗證通過",
+      "status": "failing",
+      "evidence": null
+    }
+  ]
+}
