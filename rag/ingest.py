@@ -10,7 +10,7 @@ import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from sqlite3 import Connection
 
 from config.settings import Settings
@@ -54,6 +54,10 @@ def ingest(conn: Connection, store: VectorStore, embed: EmbedFn, today: date) ->
     store.rebuild()
     if ids:
         store.upsert(ids=ids, texts=texts, embeddings=embed(texts), metadatas=metadatas)
+    # rebuild 會清掉 collection metadata，stats 要在重建後補回（/health 的資料來源）
+    store.set_ingest_stats(
+        when=datetime.now().astimezone().isoformat(timespec="seconds"), offers=len(active)
+    )
     logger.info("ingest 完成：%d 筆優惠 → %d chunks", len(active), len(ids))
     return IngestResult(offers=len(active), chunks=len(ids))
 

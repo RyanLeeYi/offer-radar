@@ -77,6 +77,46 @@ def test_query_empty_collection_returns_empty(tmp_path):
     assert store.query(embedding=[0.1, 0.2], top_k=5) == []
 
 
+def test_last_ingest_at_none_initially(tmp_path):
+    store = make_store(tmp_path)
+    assert store.last_ingest_at() is None
+
+
+def test_ingest_stats_roundtrip_and_persists(tmp_path):
+    store = make_store(tmp_path)
+    store.set_ingest_stats(when="2026-07-10T22:00:00+08:00", offers=42)
+    assert store.last_ingest_at() == "2026-07-10T22:00:00+08:00"
+    # offers 數存 metadata，不用全量掃 chunk（/health 高頻呼叫）
+    assert store.offers_count() == 42
+    # 重新開啟同路徑（模擬 API 與 ingest 是不同 process）也讀得到
+    reopened = make_store(tmp_path)
+    assert reopened.last_ingest_at() == "2026-07-10T22:00:00+08:00"
+    assert reopened.offers_count() == 42
+
+
+def test_offers_count_falls_back_to_scan_without_stats(tmp_path):
+    # 舊庫（ingest 還沒寫過 stats）退回掃 metadata，不用重建庫
+    store = make_store(tmp_path)
+    upsert_two(store)
+    assert store.offers_count() == 2
+
+
+def test_long_lived_store_survives_external_rebuild(tmp_path):
+    """API 是長駐 process、ingest 是另一個 process：rebuild 換掉 collection 後，
+    長駐端的既有 handle 不能炸 NotFoundError，且要看得到新的 ingest stats。"""
+    api_store = make_store(tmp_path)
+    upsert_two(api_store)
+    assert api_store.count() == 2
+
+    ingest_store = make_store(tmp_path)  # 模擬另一個 process
+    ingest_store.rebuild()
+    ingest_store.set_ingest_stats(when="2026-07-11T00:00:00+08:00", offers=0)
+
+    assert api_store.count() == 0  # 不炸、看得到重建後的空庫
+    assert api_store.last_ingest_at() == "2026-07-11T00:00:00+08:00"
+    assert api_store.query(embedding=[0.1, 0.2], top_k=5) == []
+
+
 def test_rebuild_clears_previous_content(tmp_path):
     store = make_store(tmp_path)
     upsert_two(store)

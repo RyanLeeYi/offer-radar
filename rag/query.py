@@ -4,19 +4,7 @@ import argparse
 import sys
 
 from config.settings import Settings
-from rag.generator import OllamaGenerator
-from rag.pipeline import Pipeline
-from rag.retriever import Retriever
-from rag.vector_store import VectorStore
-
-
-def build_pipeline(settings: Settings) -> Pipeline:
-    from rag.embedder import Embedder  # 延後 import：載 torch 很慢
-
-    store = VectorStore(path=settings.chroma_path)
-    retriever = Retriever(store=store, embed_query=Embedder(settings.embedding_model).embed_query)
-    generator = OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model)
-    return Pipeline(retriever=retriever, generator=generator)
+from rag.pipeline import build_default
 
 
 def main() -> int:
@@ -24,7 +12,7 @@ def main() -> int:
     parser.add_argument("question", help="要問的問題，例：去好市多刷哪張卡最划算")
     args = parser.parse_args()
 
-    result = build_pipeline(Settings()).answer(args.question)
+    result = build_default(Settings()).pipeline.answer(args.question)
     print(result.answer)
     if result.sources:
         print("\n來源：")

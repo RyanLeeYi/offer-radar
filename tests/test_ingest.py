@@ -97,6 +97,20 @@ def test_list_active_offers_filters_and_returns_ids(tmp_path):
     assert len(set(ids)) == 3 and all(isinstance(i, int) for i in ids)
 
 
+def test_ingest_records_ingest_stats(tmp_path):
+    conn = init_db(tmp_path / "offers.db")
+    seed_offers(conn)
+    store = VectorStore(path=str(tmp_path / "chroma"))
+    assert store.last_ingest_at() is None
+
+    ingest(conn, store, fake_embed, today=TODAY)
+
+    recorded = store.last_ingest_at()
+    assert recorded is not None
+    datetime.fromisoformat(recorded)  # ISO 格式可解析（/health 直接透傳）
+    assert store.offers_count() == 3  # 未過期優惠數一併存 metadata
+
+
 def test_ingest_empty_db_yields_empty_store(tmp_path):
     conn = init_db(tmp_path / "offers.db")
     store = VectorStore(path=str(tmp_path / "chroma"))
