@@ -15,6 +15,29 @@ _PERIOD = re.compile(
 )
 
 
+def parse_period_near(
+    text: str,
+    markers: tuple[str, ...] = ("活動期間", "活動時間"),
+    window: int = 80,
+    full_scan: bool = True,
+) -> tuple[date | None, date | None]:
+    """優先解析 markers 字樣附近的日期區間（依 markers 順序）。
+
+    ``full_scan=False`` 時標記都沒中就回 (None, None)——頁面帶樣板日期
+    （如點數到期說明）的來源，全文掃描比不猜更糟。
+    """
+    for marker in markers:
+        for match in re.finditer(re.escape(marker), text):
+            end = match.start() + window
+            # 窗口不切在數字中間：截斷的迄日（2026/12/31 → 12/3）是合法但錯誤的日期
+            while end < len(text) and text[end].isdigit():
+                end += 1
+            period = parse_period(text[match.start() : end])
+            if period[0]:
+                return period
+    return parse_period(text) if full_scan else (None, None)
+
+
 def parse_period(text: str) -> tuple[date | None, date | None]:
     """從文字抽出第一組日期區間；抽不出或日期非法回 (None, None)。"""
     match = _PERIOD.search(text)

@@ -8,7 +8,7 @@
 import logging
 from datetime import datetime
 
-from scraper.credit_card import Source, run
+from scraper.runner import Source, run
 from scraper.db import count_offers, init_db, list_offers
 from scraper.models import Offer
 
@@ -87,6 +87,26 @@ def test_upsert_does_not_commit_run_commits_per_source(tmp_path):
     visible = other.execute("SELECT COUNT(*) FROM offers").fetchone()[0]
     assert visible == 2  # run() 收尾 commit，連同先前未提交的一起落盤
     other.close()
+
+
+def test_db_failure_in_one_source_isolates_and_rolls_back(tmp_path, caplog):
+    """入庫（不只 fetch）炸掉也要隔離：該來源整批 rollback、其他來源照常、exit 非 0。"""
+    conn = init_db(tmp_path / "offers.db")
+    good = make_offer("好優惠")
+    bad = make_offer("壞優惠")
+    object.__setattr__(bad, "title", None)  # 繞過模型驗證，模擬入庫時的 DB 層錯誤
+
+    sources = [
+        Source(name="corrupt", fetch=lambda: [make_offer("同批犧牲品"), bad]),
+        Source(name="ok", fetch=lambda: [good]),
+    ]
+    with caplog.at_level(logging.ERROR):
+        exit_code = run(sources, conn)
+
+    assert exit_code != 0
+    assert any("corrupt" in r.message for r in caplog.records if r.levelno == logging.ERROR)
+    # 失敗來源整批不落盤（含同批已 upsert 的），成功來源正常入庫
+    assert [o.title for o in list_offers(conn)] == ["好優惠"]
 
 
 def test_empty_result_counts_as_failure(tmp_path, caplog):

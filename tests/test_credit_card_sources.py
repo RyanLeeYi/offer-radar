@@ -50,6 +50,25 @@ class TestParsePeriod:
         assert (start, end) == (date(2026, 7, 8), date(2026, 7, 14))
 
 
+class TestParsePeriodNear:
+    def test_window_boundary_does_not_truncate_end_date(self):
+        """掃描窗口切在迄日數字中間時，不得拿截斷的日期當答案
+        （2026/12/31 被切成 2026/12/3 → 優惠提早 28 天被當過期濾掉）。"""
+        from scraper.dates import parse_period_near
+
+        # marker(4) + 54 字填充 + 起日~迄日：窗口 80 字剛好切在迄日 2026/12/31 的最後一碼
+        text = "活動期間" + "規" * 54 + "2026/07/01 ~ 2026/12/31"
+        assert parse_period_near(text) == (date(2026, 7, 1), date(2026, 12, 31))
+
+    def test_default_markers_include_common_variant(self):
+        """「活動時間」是同義常見寫法：標記命中要優先於全文掃描，
+        否則前面的點數到期樣板日期會被誤當效期（jkopay 修過的同款問題）。"""
+        from scraper.dates import parse_period_near
+
+        text = "紅利點數於2025/1/1~2025/12/31到期。活動時間：2026/7/1~7/31"
+        assert parse_period_near(text) == (date(2026, 7, 1), date(2026, 7, 31))
+
+
 class TestCathay:
     def test_list_event_urls_only_returns_individual_events(self):
         urls = cathay.list_event_urls(read_fixture("cathay_sitemap.xml"))

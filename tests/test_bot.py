@@ -59,7 +59,8 @@ def test_format_reply_caps_telegram_message_length():
 def test_build_start_text_mentions_usage_scope_and_data_date():
     text = build_start_text(HEALTH_BODY)
     assert "好市多" in text  # 範例問題（能問什麼）
-    assert "國泰" in text and "台新" in text and "富邦" in text  # 資料涵蓋範圍
+    assert "國泰" in text and "台新" in text and "富邦" in text  # 資料涵蓋範圍（信用卡）
+    assert "街口" in text and "icash Pay" in text  # 資料涵蓋範圍（電子支付，F7）
     assert "2026-07-10" in text  # 資料更新日
     assert "228" in text
 

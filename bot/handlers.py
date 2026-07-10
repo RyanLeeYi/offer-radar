@@ -53,7 +53,7 @@ def build_start_text(health_body: dict | None) -> str:
         "直接用一句話問我優惠，例如：\n"
         "・去好市多刷哪張卡最划算\n"
         "・便利商店有什麼行動支付優惠\n\n"
-        f"資料涵蓋：國泰、台新、富邦信用卡優惠（{scope}）\n"
+        f"資料涵蓋：國泰、台新、富邦信用卡＋街口、icash Pay 電子支付優惠（{scope}）\n"
         f"資料更新日：{updated}"
     )
 

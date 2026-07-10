@@ -32,7 +32,9 @@ feature: TBD（動工日建 code repo 後轉 feature_list.json，本檔搬進 re
 - Then `offers` 表新增/更新 ≥ 30 筆，每筆必含 `title`、`content`、`source_url`、`bank`、`scraped_at`；`valid_to` 可為 null（頁面未標示時）
 - Then 重複執行不產生重複資料（以 `source_url + title` 做 upsert key）
 
-### R2：電子支付優惠爬蟲（LINE Pay、街口）
+### R2：電子支付優惠爬蟲（街口、icash Pay）
+
+> 2026/07/11 名單調整（原：LINE Pay、街口）：LINE Pay 官網活動頁僅 1 筆常青導流項，實質優惠全在 app 內 Nuxt SPA，requests 拿不到內容，出局。改為街口（mkt.jkopay.com campaign 頁，Next.js RSC payload 內嵌 HTML）＋ icash Pay（advertMessage 列表＋分頁＋明細，伺服器渲染）。決策人：Ryan。
 
 - 同 R1 行為，`python -m scraper.e_payment` 後 ≥ 10 筆，`provider` 欄位標明支付業者
 

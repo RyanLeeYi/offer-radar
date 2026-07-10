@@ -44,10 +44,10 @@
     },
     {
       "id": "F7",
-      "name": "電子支付爬蟲 ×2 家（LINE Pay、街口）",
-      "acceptance": "PRD R2：python -m scraper.e_payment 後 ≥ 10 筆，provider 欄位標明支付業者；其餘行為同 R1",
-      "status": "failing",
-      "evidence": null
+      "name": "電子支付爬蟲 ×2 家（街口、icash Pay）",
+      "acceptance": "PRD R2：python -m scraper.e_payment 後 ≥ 10 筆，provider 欄位標明支付業者；其餘行為同 R1（名單 2026/07/11 由 LINE Pay/街口改為街口/icash Pay，見 PRD R2 註記）",
+      "status": "passing",
+      "evidence": "2026-07-11 pytest 152 passed（e_payment sources 21 條 + main 接線 1 條：R2 三行為/列表去重/假 slug 排除/全形～效期/樣板日期防護/單頁失敗隔離）、ruff clean、scraper coverage 95%；實跑 5 輪：52 筆入庫（街口 19/icash Pay 33）、必填欄位 0 缺、重跑 total 不變且 (source_url,title) 重複 0、exit 0；失敗隔離（fetch 與入庫層皆 rollback 隔離）由共用 runner 測試驗證；acceptance-verifier 逐條 PASS；code review 8 角度 30 candidates 聚 12 機制修 12 緩 6 記 handoff；ingest 後 Chroma distinct 275=SQLite active、1799 chunks，檢索層實測街口/icash Pay 優惠 keyword match 進 top-3。名單決策見 DECISIONS D8"
     },
     {
       "id": "F8",

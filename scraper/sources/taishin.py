@@ -13,7 +13,7 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
-from scraper.dates import parse_period
+from scraper.dates import parse_period_near
 from scraper.models import Offer
 from scraper.sources._shared import fetch_listed_details
 
@@ -46,7 +46,7 @@ def parse_detail(detail_html: str, url: str, scraped_at: datetime) -> Offer:
     if not title or not content:
         raise ValueError(f"台新明細頁抽不到標題或內文，版面可能已改：{url}")
 
-    valid_from, valid_to = _find_period(content)
+    valid_from, valid_to = parse_period_near(content)
     return Offer(
         source_type="credit_card",
         bank=BANK,
@@ -65,12 +65,3 @@ def parse_detail(detail_html: str, url: str, scraped_at: datetime) -> Offer:
 def fetch(get: Callable[[str], str]) -> list[Offer]:
     """9 個分類列表 → 明細去重後逐頁抓；單頁失敗記 WARNING 跳過。"""
     return fetch_listed_details(get, CATEGORY_URLS, list_detail_urls, parse_detail, logger)
-
-
-def _find_period(content: str) -> tuple:
-    """優先解析「活動期間」字樣附近的日期區間，找不到再掃全文。"""
-    for match in re.finditer("活動期間", content):
-        period = parse_period(content[match.start() : match.start() + 80])
-        if period[0]:
-            return period
-    return parse_period(content)
