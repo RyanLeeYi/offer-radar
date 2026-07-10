@@ -64,6 +64,77 @@ class TestOllamaGenerator:
         assert gen.generate("q", [make_hit(1, "t", 0.1)]) == "答案在這"
 
 
+class TestOpenAIGenerator:
+    def make_generator(self, reply: str):
+        from rag.generator import OpenAIGenerator
+
+        calls: list[dict] = []
+
+        def fake_complete(model: str, messages: list[dict]) -> str:
+            calls.append({"model": model, "messages": messages})
+            return reply
+
+        return OpenAIGenerator(model="gpt-4o-mini", complete=fake_complete), calls
+
+    def test_prompt_contains_context_and_question(self):
+        gen, calls = self.make_generator("國泰卡 3% 回饋最划算")
+        answer = gen.generate("去好市多刷哪張卡", [make_hit(1, "好市多優惠", 0.1, "國泰 3%")])
+        assert answer == "國泰卡 3% 回饋最划算"
+        assert calls[0]["model"] == "gpt-4o-mini"
+        text = json.dumps(calls[0]["messages"], ensure_ascii=False)
+        assert "國泰 3%" in text and "去好市多刷哪張卡" in text
+
+    def test_shares_prompt_recipe_with_ollama(self):
+        """兩個 generator 對同輸入組出的 user content 一致——prompt 配方單一事實來源。"""
+        hits = [make_hit(1, "好市多優惠", 0.1, "國泰 3%")]
+        openai_gen, oai_calls = self.make_generator("x")
+        openai_gen.generate("去好市多刷哪張卡", hits)
+        ollama_gen, olm_calls = TestOllamaGenerator().make_generator("x")
+        ollama_gen.generate("去好市多刷哪張卡", hits)
+        oai_user = [m for m in oai_calls[0]["messages"] if m["role"] == "user"][-1]["content"]
+        olm_user = olm_calls[0]["payload"]["messages"][-1]["content"]
+        assert oai_user == olm_user
+
+
+class TestBuildGenerator:
+    def _settings(self, **overrides):
+        from config.settings import Settings
+
+        base = {"llm_provider": "ollama", "openai_api_key": "", "openai_model": "gpt-4o-mini"}
+        return Settings(**{**base, **overrides})
+
+    def test_ollama_provider_builds_ollama_generator(self):
+        from rag.generator import OllamaGenerator, build_generator
+
+        assert isinstance(build_generator(self._settings()), OllamaGenerator)
+
+    def test_openai_provider_with_key_builds_openai_generator(self):
+        from rag.generator import OpenAIGenerator, build_generator
+
+        gen = build_generator(self._settings(llm_provider="openai", openai_api_key="sk-test"))
+        assert isinstance(gen, OpenAIGenerator)
+
+    def test_openai_provider_without_key_fails_fast(self):
+        from rag.generator import build_generator
+
+        try:
+            build_generator(self._settings(llm_provider="openai", openai_api_key=""))
+        except ValueError as error:
+            assert "OPENAI_API_KEY" in str(error)
+        else:
+            raise AssertionError("缺 OPENAI_API_KEY 時應在建構期即 raise，不得延到查詢時")
+
+    def test_unknown_provider_fails_fast(self):
+        from rag.generator import build_generator
+
+        try:
+            build_generator(self._settings(llm_provider="gemini"))
+        except ValueError as error:
+            assert "gemini" in str(error)
+        else:
+            raise AssertionError("未知 provider 應 fail fast")
+
+
 class TestPipeline:
     def make_pipeline(self, hits: list[Hit], reply: str = "推薦國泰卡"):
         retriever = FakeRetriever(hits)

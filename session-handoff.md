@@ -1,6 +1,16 @@
 # Session Handoff
 
-> 最後更新：2026-07-11 02:40
+> 最後更新：2026-07-11 03:10
+
+## 這個 session 做了（F7 + F8）
+
+### F8 — OpenAI 切換支援（passing）
+- `rag/generator.py`：新增 `OpenAIGenerator`（transport `complete` 可注入、預設延後建 OpenAI client）＋ `build_generator(settings)` factory（依 `llm_provider` 選 ollama/openai；openai 缺 `OPENAI_API_KEY` 或未知 provider 即 `raise ValueError`，fail fast）
+- prompt 配方抽成 `build_user_content(question, hits)` 單一事實來源，兩 generator 共用（測試把關一致性）
+- `rag/pipeline.py build_default` 改走 `build_generator` → fail fast 在 API/CLI 啟動期發生，不是查詢時
+- 158 tests、ruff clean；缺 key 實測即 raise；OpenAI SDK 用法 Context7 已確認
+- ⚠️ **待 Ryan 手動驗一件**：`LLM_PROVIDER=openai` + 有效金鑰下實跑一次 `/query`（R6 的「openai 下 R4 通過」）。我沒擅用 memory 裡那把外洩待輪替的 OpenAI key。驗法：`.env` 設 `LLM_PROVIDER=openai` + `OPENAI_API_KEY=<有效 key>`，重啟 API，問 PRD 三範例確認回答正常
+- ⚠️ code review：F8 diff 是純抽取 + 小新增（一個 class + factory），我用**聚焦自審 + Context7 驗 SDK + fail-fast 實測**取代完整多代理 /code-review（F7 已跑完整 8 角度）。若要補正式 review 可對 `rag/generator.py` 跑一次
 
 ## 這個 session 做了（F7）
 
@@ -28,6 +38,8 @@
 
 ## 下一步（具體到可直接動手）
 
-1. F8 OpenAI 切換支援：驗收 R6——`LLM_PROVIDER=ollama|openai` 下 R4 均過；openai 缺 `OPENAI_API_KEY` 啟動即 fail fast 明確錯誤
-2. generator 抽象已在 `rag/generator.py`，確認介面後加 openai client 實作＋settings 開關；qwen3 的 prompt 配方（D6）在 OpenAI 模型上要重新驗證
-3. 順手收：DB 路徑與逾時常數統一進 config（見上第 4 點）
+1. **F9 README + 乾淨環境驗證**（最後一個 feature，收官）：驗收——乾淨 clone 照 README + `./init.sh` 可跑起；`.env.example` 齊全（補 `LLM_PROVIDER`、`OPENAI_API_KEY`、`OPENAI_MODEL`、`EMBEDDING_MODEL`、`TELEGRAM_BOT_TOKEN` 條目）；pytest 覆蓋率 ≥ 80%（現 90%）；ruff clean；PRD 三範例 Telegram 端手動驗
+2. F9 README 是對外文稿 → 先讀 vault `identity/voice-and-tone.md`（若存在）
+3. 收官走 vault PLAN 的 checklist + `sop/after-action.md`（成功指標對答案、harness 消融檢討、成就故事、歸檔）
+4. F8 遺留：openai provider 真 API 手動驗一次（見上）
+5. 順手收技術債：DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 35s/api 30s 逾時常數兩處，統一進 config

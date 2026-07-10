@@ -98,13 +98,13 @@ class RagRuntime:
 def build_default(settings: Settings) -> RagRuntime:
     """依設定組裝正式環境的 pipeline（CLI 與 API 共用的組裝入口）。"""
     from rag.embedder import Embedder  # 延後 import：載 torch 很慢
-    from rag.generator import OllamaGenerator
+    from rag.generator import build_generator
     from rag.retriever import Retriever
     from rag.vector_store import VectorStore
 
     store = VectorStore(path=settings.chroma_path)
     retriever = Retriever(store=store, embed_query=Embedder(settings.embedding_model).embed_query)
-    generator = OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model)
+    generator = build_generator(settings)  # R6：provider 切換 + 缺金鑰 fail fast
     return RagRuntime(pipeline=Pipeline(retriever=retriever, generator=generator), stats=store)
 
 

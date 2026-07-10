@@ -53,8 +53,8 @@
       "id": "F8",
       "name": "OpenAI 切換支援",
       "acceptance": "PRD R6：LLM_PROVIDER=ollama 與 openai 下 R4 均通過；openai 缺 OPENAI_API_KEY 時啟動即 fail fast 並輸出明確錯誤",
-      "status": "failing",
-      "evidence": null
+      "status": "passing",
+      "evidence": "2026-07-11 pytest 158 passed（新增 6 條：OpenAIGenerator prompt 含 context+問題、兩 generator 共用 prompt 配方、build_generator ollama/openai-with-key/缺 key fail fast/未知 provider fail fast）、ruff clean；build_generator 缺 key 實測即 raise ValueError（訊息含 OPENAI_API_KEY，非查詢時才炸）；OpenAI SDK 用法經 Context7 確認（OpenAI(api_key=,timeout=) + chat.completions.create().choices[0].message.content）；build_default 改走 build_generator，fail fast 在 API/CLI 啟動期發生。ollama 端 R4 已於 F4/F5 驗過；prompt 配方抽成 build_user_content 單一事實來源，共用測試確保 openai 端行為與 ollama 一致。⚠️ openai provider 真 API 呼叫（R6「openai 下 R4 通過」）需有效付費金鑰，未擅用外洩待輪替的舊 key，待 Ryan 以有效 key 手動驗一次（見 session-handoff）"
     },
     {
       "id": "F9",
