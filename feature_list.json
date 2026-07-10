@@ -39,8 +39,8 @@
       "id": "F6",
       "name": "Telegram Bot",
       "acceptance": "PRD R7：文字訊息 → 呼叫 /query 回 answer+來源連結；/start 回使用說明；非文字訊息回「請用文字提問」",
-      "status": "failing",
-      "evidence": null
+      "status": "passing",
+      "evidence": "2026-07-11 pytest 129 passed（test_bot 21 條：R7 三行為/503/504/422/連線失敗/edited message 不派送/token fail fast）、ruff clean、bot coverage 86%；Ryan 於 Telegram 實測 @ryan_offer_radar_bot：/start 使用說明、文字問題（首發冷載入觸發 504 友善訊息→重問 200 帶來源）、貼圖→請用文字提問，API/bot log 對應（sendMessage 200 ×4、POST /query 504→200）；缺 token 實跑 exit 1 明確錯誤；acceptance-verifier 逐條 PASS；code review 8 findings 修 5（edited_message None 崩潰、422 無對應訊息、吞錯不 log、長度硬上限、transport 重複）駁 1 緩 2"
     },
     {
       "id": "F7",
