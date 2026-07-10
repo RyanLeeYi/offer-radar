@@ -96,6 +96,19 @@ def count_offers(conn: sqlite3.Connection) -> int:
     return conn.execute("SELECT COUNT(*) FROM offers").fetchone()[0]
 
 
+def list_active_offers(conn: sqlite3.Connection, today: date) -> list[tuple[int, Offer]]:
+    """讀出未過期優惠（valid_to 為 null 或 ≥ today）連同 id——RAG ingest 的資料來源（PRD R3）。
+
+    日期以 ISO 字串儲存，字典序即日期序，可直接用字串比較。
+    """
+    rows = conn.execute(
+        f"SELECT id, {_SELECT_COLUMNS} FROM offers "
+        "WHERE valid_to IS NULL OR valid_to >= ? ORDER BY id",
+        (today.isoformat(),),
+    ).fetchall()
+    return [(row[0], _row_to_offer(row[1:])) for row in rows]
+
+
 def _row_to_offer(row: tuple) -> Offer:
     (
         source_type, bank, provider, title, content, channel,

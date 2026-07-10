@@ -30,3 +30,4 @@
 6. 爬蟲禮儀：遵守 robots.txt、自訂 User-Agent、請求間隔 ≥ 1 秒
 7. `reward_rate` 保留原文不解析（PRD 技術約束）
 8. session 結束前更新 `session-handoff.md`（L2 起）
+9. 收官（session 結束）時檢查 `git status` + 未推 commit：程式碼有改動就 commit 並 `git push`（remote：github.com/RyanLeeYi/offer-radar）

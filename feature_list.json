@@ -18,8 +18,8 @@
       "id": "F3",
       "name": "chunker + embedder + ChromaDB ingest",
       "acceptance": "PRD R3：python -m rag.ingest 後 ChromaDB 筆數 = SQLite 未過期優惠筆數；每 chunk metadata 含 offer_id/valid_to/source_url",
-      "status": "failing",
-      "evidence": null
+      "status": "passing",
+      "evidence": "2026-07-10 實跑 python -m rag.ingest：228 筆未過期優惠 → 1543 chunks；ChromaDB distinct offer_id=228=SQLite active（total 243/active 228），count=1543，metadata 含 offer_id/valid_to/source_url/title；chunk 上限 450 字、全量重建（rebuild→upsert）重跑 idempotent；embedding=paraphrase-multilingual-MiniLM-L12-v2（D5）；pytest 64 passed（chunker 6/vector_store 4/ingest 5 + 既有）、ruff clean"
     },
     {
       "id": "F4",
