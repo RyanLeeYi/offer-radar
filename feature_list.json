@@ -9,10 +9,10 @@
     },
     {
       "id": "F2",
-      "name": "信用卡爬蟲 ×3 家（國泰、中信、玉山）",
-      "acceptance": "PRD R1：執行 python -m scraper.credit_card 後 offers 表新增/更新 ≥ 30 筆，必含 title/content/source_url/bank/scraped_at；重複執行不重複入庫；某來源失敗時 log ERROR、既有資料保留、非 0 exit code",
-      "status": "failing",
-      "evidence": null
+      "name": "信用卡爬蟲 ×3 家（國泰、台新、富邦）",
+      "acceptance": "PRD R1：執行 python -m scraper.credit_card 後 offers 表新增/更新 ≥ 30 筆，必含 title/content/source_url/bank/scraped_at；重複執行不重複入庫；某來源失敗時 log ERROR、既有資料保留、非 0 exit code（名單 2026/07/10 由國泰/中信/玉山改為國泰/台新/富邦，見 PRD R1 註記）",
+      "status": "passing",
+      "evidence": "2026-07-10 實跑 3 輪：243 筆入庫（國泰 110/台新 97/富邦 36）、必填欄位 0 缺、重跑 total 不變且 (source_url,title) 重複 0、exit 0；失敗隔離（單來源例外/空結果→ERROR+exit 1、既有資料保留）由 tests/test_credit_card_main.py 驗證；pytest 47 passed、coverage 95%、ruff clean；code review 7 findings 修 5（HTTP 單頁隔離/跨年效期/來源級 transaction/共用管線/AEM itemsOrder），遺留 2 筆見 session-handoff"
     },
     {
       "id": "F3",

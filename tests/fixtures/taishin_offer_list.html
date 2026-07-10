@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<!-- 20200714 調整智能客服url -->
+<!-- 20230317 modify cookie-accept-block.js url to avoid cache -->
+<!-- 20230407 調整LOGO變更  by Ray -->
+<!-- 20231019 增加瀏覽器版本說明 by Ray -->
+<!-- 20250212 第三方套件升版調整 by Ray -->
+<!-- 20250808 update smartrobot URL -->
+<!-- 20251106 第三方套件升版 upgrade bootstrap & remove smoothScroll by Ray -->
+<!-- 20251201 第三方套件升版, lib issue調整 by Ray -->
+<meta charset="UTF-8">
+
+<title>美饌料理 ： 台新銀行</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<meta id="_csrf" name="_csrf" content="WDMcXnFtIhOuKG-IGUfAjU9Ic1U4y4ImIYQsW2cGmGtLo0x_YQYtZhRZRCGDSlu_fWr0uC14XjQBqrILFbEePwRgrVl_li5P"/>
+<meta id="_csrf_header" name="_csrf_header" content="X-CSRF-TOKEN"/>
+<meta name="keyWords" content="" />
+<!-- 修改meta屬性讓FB分享 - By Gina 2020-1-15 -->
+<!-- <meta property="og:description" content="" /> -->
+<!-- <meta property="og:title" content="" /> -->
+<!-- <meta property="og:image" content="" /> -->
+<meta name="viewport"
+	content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=yes" />
+		<!-- 滲透、金檢議題調整 相對路徑改絕對路徑  by Jim 2020/05/25 -->
+	    <link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/all.css"></link>	    
+		<link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/bootstrap.min.css"></link>
+		<link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/plugins.css"></link>
+		<link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/styles.css"></link>
+		<link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/styles-responsive.css"></link>
+		<link rel="shortcut icon" href="https://mkp.taishinbank.com.tw/tscccms/img/favicon/favicon.png">
+		<link rel="apple-touch-icon" href="https://mkp.taishinbank.com.tw/tscccms/img/favicon/apple-touch-icon.png">
+		<!-- cookie CR by Hank 2021/04/27-->
+		<link rel="stylesheet" href="https://mkp.taishinbank.com.tw/tscccms/css/cookie-accept-block.css"></link>
+		
+		<!-- 滲透-更新jquery及bootstrap版本  by Gina 2020/05/25 -->
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/jquery-3.5.1.js"></script>
+		
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/bootstrap-5.3.3.js"></script>
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/modernizr-3.3.1.js"></script>
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/metismenu-2.7.9.js"></script>
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/flexSlider-2.6.0.js"></script>
+		<!-- cookie CR by Hank 2021/04/27 -->
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/cookie-accept-block.js?v=317112"></script>
+		<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/js-cookie-3.0.5.js"></script>
+		
+		 
+<script> var contextRoot = "\/tscccms\/"; </script>
+<script>
+var originURL;
+$(function(){
+    var actionType = 'null';
+    if(actionType == 'queryList' || actionType == 'register' || actionType == 'cancel'){
+		$("#cridet_register").addClass('active');
+    }
+    
+    //移除 queryListSelected. registerSelected. cancelSelected onclick的觸發事件。
+    
+    var token=$('#_csrf').attr('content');
+	var header=$('#_csrf_header').attr('content');
+    $(document).ajaxSend(function(e,xhr,options){
+    	xhr.setRequestHeader(header,token);
+    });
+    //金檢、滲透調整 by Jim 2020/05/25
+    //IE不支援window.location.origin
+    if(!window.location.origin){
+    	window.location.origin=window.location.protocol+"//"+window.location.hostname+(window.location.port?':'+window.location.port:'');
+    }
+    originURL=window.location.origin+"/tscccms";
+    
+});	
+</script>
+<!-- 與台新IT同步 by Jim 2020/06/02 -->
+<!-- 20200319 新增GA碼 -->
+<!-- 20210512 移除gtm,調整GA碼 -->
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-74878556-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config','UA-74878556-1',{
+       'custom_map': {
+           'dimension2': 'client_id'
+       },
+       'anonymize_ip': true,
+       'cookie_expires': 63072000
+  });
+</script>
+
+<script src="https://mkp.taishinbank.com.tw/tscccms/js/lib/signin.js" type="text/javascript"></script>
+<script type="text/javascript">
+	function searchPromotion(){
+		$("#queryPromotionForm").submit();
+	}
+	
+	function searchPromotionForMobie(){
+		$("#queryPromotionFormForMobie").submit();
+	}
+	
+	function changeAscDesc(){
+		if($("#orderAscDesc").val() == 'Desc'){
+			$("#orderAscDesc").val("Asc");
+			$("#queryPromotionForm").submit();
+		}else{
+			$("#orderAscDesc").val("Desc");
+			$("#queryPromotionForm").submit();
+		}
+	}
+	
+	function previousPage(){
+		var totalPage = parseInt($("#totalPage").val());
+		var nowPage = parseInt($("#nowPage").val());
+		var nextPage = parseInt($("#nowPage").val())-1;
+		if(nowPage == 1){
+			$("#previousPage").addClass("btn-disabled");
+			$("#nextPage").removeClass("btn-disabled");
+		}else{
+			if(nowPage > 1){
+				$("#previousPage").removeClass("btn-disabled");
+				$("#nextPage").removeClass("btn-disabled");
+				$("#nowPage").val(nextPage);
+				$("#page").val(nextPage);
+				$("#queryPromotionForm").submit();
+				if(nextPage == 1){
+					$("#previousPage").addClass("btn-disabled");
+					$("#nextPage").removeClass("btn-disabled");
+				}
+			}
+		}
+		
+		if(totalPage == 1){
+			$("#previousPage").addClass("btn-disabled");
+			$("#nextPage").addClass("btn-disabled");
+		}
+	}
+	
+	function nextPage(){
+		var totalPage = parseInt($("#totalPage").val());
+		var nowPage = parseInt($("#nowPage").val());
+		var nextPage = parseInt($("#nowPage").val())+1;
+		
+		console.log("nowPage: "+nowPage);
+		console.log("totalPage: "+totalPage);
+		
+		if(nowPage == totalPage){
+			$("#nextPage").addClass("btn-disabled");
+			$("#previousPage").removeClass("btn-disabled");
+		}else{
+			if(nowPage < totalPage){
+				$("#previousPage").removeClass("btn-disabled");
+				$("#nextPage").removeClass("btn-disabled");
+				$("#nowPage").val(nextPage);
+				$("#page").val(nextPage);
+				$("#queryPromotionForm").submit();
+				if(nextPage == totalPage){
+					$("#nextPage").addClass("btn-disabled");
+					$("#previousPage").removeClass("btn-disabled");
+				}
+			}
+		}
+		
+		if(totalPage == 1){
+			$("#previousPage").addClass("btn-disabled");
+			$("#nextPage").addClass("btn-disabled");
+		}
+	}
+	
+	
+	function keyEnter(){
+		if(event.keyCode==13){
+			// Enter pressed... do anything here...
+			var nowPage = parseInt($("#nowPage").val());
+			var totalPage = parseInt($("#totalPage").val());
+		    if(nowPage > totalPage){
+		    	$("#nowPage").val(totalPage);
+		    	$("#page").val(totalPage);
+		    }
+		    if(nowPage < 1){
+		    	$("#nowPage").val(1);
+		    	$("#page").val(1);
+		    }
+		    if(1 <= nowPage && nowPage <= totalPage){
+		    	$("#nowPage").val(nowPage);
+		    	$("#page").val(nowPage);
+		    	$("#queryPromotionForm").submit();
+		    }
+		}
+	}
+	/* $(function() {
+		$("#nowPage").on('keypress', function() {
+		});	
+	}) */
+	
+	//當顯示更多的按鈕被觸發時，以AJAX跟後端請求下一頁之資料
+	function getMoreProList() {
+		 $('#queryPage').val(parseInt($('#queryPage').val())+1);
+		 
+		 var nowPage = $('#queryPage').val();
+		 var totalPage = $('#totalPage').val();
+		 
+		 if(nowPage == totalPage){
+			 console.log("nowPage == totalPage");
+			 $('#getMorePro').css("display","none");
+		 }
+		var objXHR = $.ajax({
+			type : "POST",
+			url : "/tscccms/promotion/getMorePromotionList/",
+			data : createQueryString($('#categoryId').val(), 
+									 $('input[name=queryStoreType]:checked').val(), 
+									 $('#queryRegionId').val(), 
+									 $('#queryKeyWord').val(), 
+									 $('input[name=orderAscDesc]:checked').val(), 
+									 $('#queryPage').val()),
+			cache : true,
+			async : false,
+			dataType : "json",
+			success : function(proObjList) {
+				console.log('proObjList: '+proObjList);
+				proObjList.forEach(function(proObj) {
+					
+					if(proObj.listPic == null || proObj.listPic == ''){
+						if('Y' == proObj.regRequired){
+							$('.offer-box:last').after(
+									'<div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4">'+
+										'<a class="card-holder" href="/tscccms/promotion/detail/'+encodeHTML(proObj.promotionId)+'" title="'+encodeHTML(proObj.promotionName)+'">'+
+										'<div class="card card-offer h-100">'+
+							              //'<img src="/tscccms/img/assets/offer-list-item-default.png" class="card-img-top" alt="'+proObj.promotionName+'">'+
+							              '<img src="https://mkp.taishinbank.com.tw/tscccms/img/assets/offer-list-item-default.png" class="card-img-top" alt="'+encodeHTML(proObj.promotionName)+'">'+
+							              '<div class="card-body"> <strong class="card-title">'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<div class="register-required-mobile">須登錄</div>'+
+							              '</div>'+
+							              '<div class="card-detail"><strong>'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<ul class="card-detail-list">'+
+							                  '<li>活動介紹：'+encodeHTML(proObj.promotionBrief)+'</li>'+
+							                  '<li>活動期間：'+encodeHTML(proObj.promotionStartDate)+'~'+encodeHTML(proObj.promotionEndDate)+'</li>'+
+							                  '<li>適用卡別：'+encodeHTML(proObj.customerProperty)+'</li>'+
+							                '</ul>'+
+							                '<div class="card-detail-footer">'+
+							                  '<div class="register-required">須登錄</div>'+
+							                '</div>'+
+							              '</div>'+
+							            '</div>'+
+							            '</a>'+
+							        '</div>'
+								);
+						}else{
+							$('.offer-box:last').after(
+									'<div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4">'+
+										'<a class="card-holder" href="/tscccms/promotion/detail/'+encodeHTML(proObj.promotionId)+'" title="'+encodeHTML(proObj.promotionName)+'">'+
+										'<div class="card card-offer h-100">'+
+							              '<img src="https://mkp.taishinbank.com.tw/tscccms/img/assets/offer-list-item-default.png" class="card-img-top" alt="'+encodeHTML(proObj.promotionName)+'">'+
+							              '<div class="card-body"> <strong class="card-title">'+encodeHTML(proObj.promotionName)+'</strong>'+
+							              '</div>'+
+							              '<div class="card-detail"><strong>'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<ul class="card-detail-list">'+
+							                  '<li>活動介紹：'+encodeHTML(proObj.promotionBrief)+'</li>'+
+							                  '<li>活動期間：'+encodeHTML(proObj.promotionStartDate)+'~'+encodeHTML(proObj.promotionEndDate)+'</li>'+
+							                  '<li>適用卡別：'+encodeHTML(proObj.customerProperty)+'</li>'+
+							                '</ul>'+
+							                '<div class="card-detail-footer">'+
+							                '</div>'+
+							              '</div>'+
+							            '</div>'+
+							            '</a>'+
+							        '</div>'
+								);
+						}
+					}else{
+						if('Y' == proObj.regRequired){
+							$('.offer-box:last').after(
+									'<div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4">'+
+										'<a class="card-holder" href="/tscccms/promotion/detail/'+encodeHTML(proObj.promotionId)+'" title="'+encodeHTML(proObj.promotionName)+'">'+
+										'<div class="card card-offer h-100">'+
+							              '<img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/'+encodeHTML(proObj.listPic)+'" class="card-img-top" alt="'+encodeHTML(proObj.promotionName)+'" >'+
+							              '<div class="card-body"> <strong class="card-title">'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<div class="register-required-mobile">須登錄</div>'+
+							              '</div>'+
+							              '<div class="card-detail"><strong>'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<ul class="card-detail-list">'+
+							                  '<li>活動介紹：'+encodeHTML(proObj.promotionBrief)+'</li>'+
+							                  '<li>活動期間：'+encodeHTML(proObj.promotionStartDate)+'~'+encodeHTML(proObj.promotionEndDate)+'</li>'+
+							                  '<li>適用卡別：'+encodeHTML(proObj.customerProperty)+'</li>'+
+							                '</ul>'+
+							                '<div class="card-detail-footer">'+
+							                  '<div class="register-required">須登錄</div>'+
+							                '</div>'+
+							              '</div>'+
+							            '</div>'+
+							            '</a>'+
+							        '</div>'
+							);
+						}else{
+							$('.offer-box:last').after(
+									'<div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4">'+
+										'<a class="card-holder" href="/tscccms/promotion/detail/'+encodeHTML(proObj.promotionId)+'" title="'+encodeHTML(proObj.promotionName)+'">'+
+										'<div class="card card-offer h-100">'+
+							              '<img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/'+encodeHTML(proObj.listPic)+'" class="card-img-top" alt="'+encodeHTML(proObj.promotionName)+'" >'+
+							              '<div class="card-body"> <strong class="card-title">'+encodeHTML(proObj.promotionName)+'</strong>'+
+							              '</div>'+
+							              '<div class="card-detail"><strong>'+encodeHTML(proObj.promotionName)+'</strong>'+
+							                '<ul class="card-detail-list">'+
+							                  '<li>活動介紹：'+encodeHTML(proObj.promotionBrief)+'</li>'+
+							                  '<li>活動期間：'+encodeHTML(proObj.promotionStartDate)+'~'+encodeHTML(proObj.promotionEndDate)+'</li>'+
+							                  '<li>適用卡別：'+encodeHTML(proObj.customerProperty)+'</li>'+
+							                '</ul>'+
+							                '<div class="card-detail-footer">'+
+							                '</div>'+
+							              '</div>'+
+							            '</div>'+
+							            '</a>'+
+							        '</div>'
+							);
+						}
+					}
+				});
+			}
+		});
+	}
+	
+	function createQueryString(categoryId, queryStoreType, queryRegionId, queryKeyWord, queryOrderAscDesc, queryPage){
+		
+		var queryString = {"categoryId":categoryId,"queryStoreType":queryStoreType,"queryRegionId":queryRegionId,"queryKeyWord":queryKeyWord,"queryOrderAscDesc":queryOrderAscDesc,"queryPage":queryPage};
+		
+		return queryString;
+	}
+	//活動未上線、已下線阻擋判斷 - By Gina 2019-11-29
+	$(function(){
+		var showPop = '';
+		//將前端文字提示拉到後端做彈性化處理 by Jim 2020/06/03
+		if(showPop){
+			$('div.modal-content').removeClass('modal-success-alert');
+			$('div.modal-content').addClass('modal-danger-alert')
+			$('div.modal-alert-icon i').removeClass('fa-thumbs-up');
+			$('div.modal-alert-icon i').addClass('fa-exclamation-circle');
+			$('div.modal-alert-content').html('<span>'+showPop+'</span>');
+			$('#success-feedback').modal('show');
+		}
+		
+	})
+	
+	//Domain 轉換 by Hank 2021/03/08
+	$(function(){
+		categoryId = 'B';
+		if(originURL!=='https://mkpcard.taishinbank.com.tw/tscccms'){
+			window.location.href='https://mkpcard.taishinbank.com.tw/tscccms'+'/promotion/offerList/' + encodeHTML(categoryId);
+		}
+	})
+</script>
+</head>
+<body>
+   <!--mask-->
+  <div id="loading" class="fullscreen" style="display:none">
+  <div class="lds">
+    <div class="lds-ring">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+    <div class="lds-text">處理中....<br/>敬請稍候</div>
+  </div>
+</div>
+    <!--mask-->
+	<div id="container" class="page-layout">
+		<header id="header" class="header">
+			<a href="#" class="mobile-nav-trigger" title="行動選單"><i
+				class="far fa-bars"></i><span class="sr-only">行動選單</span></a>
+			<div class="side-logo">
+				<a href="https://www.taishinbank.com.tw/TSB/personal/" target="_blank" title="回首頁"><img src="https://mkp.taishinbank.com.tw/tscccms/img/taishin-logo.png?v=317112" class="img-fluid"  alt="台新銀行Logo" /></a>
+			</div>
+		</header>
+		<!--.header-->
+		<div class="wrapper">
+			<div class="page-container">
+				<div class="two-col-wrapper">
+					<div class="col-page col-page-left"> 
+			          <!--08162019-新增標籤01結束--> 
+			          <!--08162019-移置區A開始-->
+			          <nav class="side-nav"> <a href="#" class="mobile-nav-close" title="關閉視窗"><i class="fal fa-times"></i><span class="sr-only">關閉視窗</span></a>
+				<ul id="side-menu" class="side-menu">
+					<li class="has-child active"><a href="/tscccms/" title="信用卡刷卡優惠">信用卡刷卡優惠</a>
+						<ul>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/A" title="旅遊及海外購物"><span
+									class="nav-icon travel-shopping"></span> 旅遊及海外購物</a></li>
+							<li class="active">
+								<a href="/tscccms/promotion/offerList/B" title="美饌料理"><span
+									class="nav-icon food-cooking"></span> 美饌料理</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/C" title="加油交通"><span
+									class="nav-icon gas-transportation"></span> 加油交通</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/D" title="百貨購物"><span
+									class="nav-icon department-store"></span> 百貨購物</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/E" title="網購及3C"><span
+									class="nav-icon online-shopping"></span> 網購及3C</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/F" title="量販超市超商"><span
+									class="nav-icon outlet-supermarket"></span> 量販超市超商</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/G" title="娛樂及影城"><span
+									class="nav-icon entertain-theater"></span> 娛樂及影城</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/H" title="保險及稅費"><span
+									class="nav-icon insurance-tax"></span> 保險及稅費</a></li>
+							<li class="">
+								<a href="/tscccms/promotion/offerList/I" title="其他優惠"><span
+									class="nav-icon other-offers"></span> 其他優惠</a></li>
+			                </ul>
+			              </li>
+					<li class="has-child" id="cridet_register">
+			              	<a href="#" title="信用卡活動登錄">信用卡活動登錄</a>
+			                <ul>
+							<li class=""><a id="registerSelected" href="https://mkpcard.taishinbank.com.tw/tscccms/register/select" title="登錄活動"><span
+									class="nav-icon register-event"></span> 登錄活動</a></li>
+							<li class=""><a id="queryListSelected" href="https://mkpcard.taishinbank.com.tw/tscccms/register/queryList" title="查詢已登錄活動"><span
+									class="nav-icon query-registered"></span> 查詢已登錄活動</a></li>
+							<li class=""><a id="cancelSelected" href="https://mkpcard.taishinbank.com.tw/tscccms/register/cancelSelect" title="取消已登錄分期活動"><span
+									class="nav-icon cancel-registered"></span> 取消已登錄分期活動</a></li>
+			                </ul>
+			                <!-- 20200520 added 登出 -->
+                			 
+               			    <!--/20200520 added 登出 -->
+				</ul>
+			</nav>
+			          <!-- 
+			          <div class="side-banner">
+			            <div class="mb-3"><a href="#" title=""><img th:src="@{/img/assets/side-banner-sample-1.jpg}" class="img-fluid" alt="廣告"/></a></div>
+			            <div class="mb-0"><a href="#" title=""><img th:src="@{/img/assets/side-banner-sample-2.jpg}" class="img-fluid" alt="廣告"/></a></div>
+			          </div>
+			           -->  
+			          <!--08162019-移置區A結束--> 
+					</div>											
+					<!--08162019-新增標籤02開始-->              				
+		<div class="col-page col-page-right">
+    <div class="page-slide">
+      <div class="page-slider flexslider">
+      <!-- 預設-->
+      	   
+      	  <!--輪播-->
+		   <ul class="slides">
+	         <li>
+	           <div class="slide-item">
+	             <div class="slide-image"><img src="https://mkp.taishinbank.com.tw/tscccms/advertisement/upload/20260701112925213.jpg" class="img-fluid" alt="精選親子餐廳/飯店最高11%"/></div>
+	             <div class="slide-content"> <strong>精選親子餐廳/飯店最高11%</strong>
+	               <p>快領Richart卡童玩券</p>
+	               <div class="slide-action">
+					<!-- 瞭解詳情按鈕皆另開新分頁 By Gina 2019-12-06 -->
+	               	<a target="_blank" href="https://mkpcard.taishinbank.com.tw/tscccms/promotion/detail/WM_20260617182726427" class="btn btn-sm btn-slide" title="精選親子餐廳/飯店最高11%">瞭解詳情 <i class="far fa-angle-right"></i></a>
+	               </div>
+	             </div>
+	           </div>
+	         </li>
+	         <li>
+	           <div class="slide-item">
+	             <div class="slide-image"><img src="https://mkp.taishinbank.com.tw/tscccms/advertisement/upload/20260701113118253.jpg" class="img-fluid" alt="LINE Pay享最高3.8%"/></div>
+	             <div class="slide-content"> <strong>LINE Pay享最高3.8%</strong>
+	               <p>Pay著刷Richart卡</p>
+	               <div class="slide-action">
+					<!-- 瞭解詳情按鈕皆另開新分頁 By Gina 2019-12-06 -->
+	               	<a target="_blank" href="https://mkpcard.taishinbank.com.tw/tscccms/promotion/detail/WM_20260615104836373" class="btn btn-sm btn-slide" title="LINE Pay享最高3.8%">瞭解詳情 <i class="far fa-angle-right"></i></a>
+	               </div>
+	             </div>
+	           </div>
+	         </li>
+	       </ul>
+      </div>
+    </div>
+    <div class="page-title">
+      <h1 class="master-title">美饌料理</h1>
+    </div>
+    <div class="page-utility">
+      <div class="page-utitlity-mobile-action">
+        <button type="button" class="btn btn-settings mobile-utility-trigger"><i class="far fa-sliders-h"></i> 篩選排序</button>
+      </div>
+	  <!--手機版的查詢 Start-->
+	  <form id="queryPromotionFormForMobie" action="/tscccms/promotion/offerList/B" method="post"><input type="hidden" name="_csrf" value="WDMcXnFtIhOuKG-IGUfAjU9Ic1U4y4ImIYQsW2cGmGtLo0x_YQYtZhRZRCGDSlu_fWr0uC14XjQBqrILFbEePwRgrVl_li5P"/>
+	      <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+		  <input type="hidden" id="queryPage" name="queryPage" value="1"/>
+	      <input type="hidden" id="totalPage" name="totalPage" value="4"/>
+	      <input type="hidden" id="categoryId" name="categoryId" value="B"/>
+	      <div class="page-utitlity-mobile-wrapper"> <a href="#" class="mobile-utility-close" title="關閉視窗"><i class="fal fa-times"></i><span class="sr-only">關閉視窗</span></a> <strong class="filter-sorting-title">篩選排序</strong>
+	        <div class="form-group bg-white">
+	          <label class="control-label">依時間排序</label>
+	          <div class="clearfix">
+	            <div class="radioer">
+	              <input type="radio" name="orderAscDesc" id="sorting-order-by-time-up" value="Desc" checked="checked" />
+	              <label for="sorting-order-by-time-up">從最新到最舊</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="orderAscDesc" id="sorting-order-by-time-down" value="Asc"/>
+	              <label for="sorting-order-by-time-down">從最舊到最新</label>
+	            </div>
+	          </div>
+	        </div>
+	        <div class="form-group">
+	          <label class="control-label">請選擇類別</label>
+	          <div class="clearfix">
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="none" value="null" checked="checked" />
+	              <label for="none">無</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B1" value="B1"/>
+	              <label for="B1">百貨餐廳</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B2" value="B2"/>
+	              <label for="B2">飯店美饌</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B3" value="B3"/>
+	              <label for="B3">中式料理</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B4" value="B4"/>
+	              <label for="B4">異國料理</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B5" value="B5"/>
+	              <label for="B5">午茶餐廳</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B6" value="B6"/>
+	              <label for="B6">訂位外送</label>
+	            </div>
+	            <div class="radioer">
+	              <input type="radio" name="queryStoreType" id="B7" value="B7"/>
+	              <label for="B7">其他</label>
+	            </div>
+	          </div>
+	        </div>
+	        <div class="form-group">
+	          <label for="location" class="control-label">縣市</label>
+	          <div class="select-style">
+	            <select id="queryRegionId" class="form-control" name="queryRegionId">
+	              <option value="null" style="display:none;" disabled selected>請選擇縣市</option>
+	              <option value="00">不限制</option>
+	              <option value="01">基隆市</option>
+	              <option value="02">台北市</option>
+	              <option value="03">新北市</option>
+	              <option value="04">桃園縣</option>
+	              <option value="05">新竹市</option>
+	              <option value="06">新竹縣</option>
+	              <option value="07">苗栗縣</option>
+	              <option value="08">台中市</option>
+	              <option value="09">彰化縣</option>
+	              <option value="10">南投縣</option>
+	              <option value="11">雲林縣</option>
+	              <option value="12">嘉義市</option>
+	              <option value="13">嘉義縣</option>
+	              <option value="14">台南市</option>
+	              <option value="15">高雄市</option>
+	              <option value="16">屏東縣</option>
+	              <option value="17">台東縣</option>
+	              <option value="18">花蓮縣</option>
+	              <option value="19">宜蘭縣</option>
+	              <option value="20">澎湖縣</option>
+	              <option value="21">金門縣</option>
+	              <option value="22">連江縣</option>
+	            </select>
+	          </div>
+	        </div>
+	        <div class="form-group">
+	          <label for="keyword" class="control-label">查詢</label>
+	          <input type="text" class="form-control" placeholder="請輸入關鍵字查詢" id="queryKeyWord" name="queryKeyWord" value=""/>
+	        </div>
+	        <div class="form-group">
+	          <button type="button" class="btn btn-brand btn-round btn-block" onclick="searchPromotionForMobie()"><i class="fa fa-search"></i> 查詢</button>
+	        </div>
+	      </div>
+	  </form>
+      <!--手機版的查詢 End-->
+      <div class="page-utility-wrapper smaller-grid">
+      	<form id="queryPromotionForm" action="/tscccms/promotion/offerList/B" method="post"><input type="hidden" name="_csrf" value="WDMcXnFtIhOuKG-IGUfAjU9Ic1U4y4ImIYQsW2cGmGtLo0x_YQYtZhRZRCGDSlu_fWr0uC14XjQBqrILFbEePwRgrVl_li5P"/>
+	      	<input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+			<input type="hidden" id="page" value="1" name="page"/>
+	      	
+	      	<input type="hidden" id="orderAscDesc" value="Desc" name="orderAscDesc"/>
+	        <div class="row">
+	          <div class="col-lg-6 page-utitliy-group">
+	            <label for="restaurant-type" class="control-label">分類</label>
+	            <div class="row">
+	              <div class="col-sm-6">
+	                <div class="select-style">
+	                  <select id="restaurant-type" class="form-control" name="queryStoreType">
+	                    <option value="" style="display:none;" disabled selected="selected">請選擇類別</option>
+	                    <option value="B1">百貨餐廳</option>
+	                    <option value="B2">飯店美饌</option>
+	                    <option value="B3">中式料理</option>
+	                    <option value="B4">異國料理</option>
+	                    <option value="B5">午茶餐廳</option>
+	                    <option value="B6">訂位外送</option>
+	                    <option value="B7">其他</option>
+	                  </select>
+	                </div>
+	              </div>
+	              <div class="col-sm-6">
+	                <div class="select-style">
+	                  <select id="restaurant-location" class="form-control" name="queryRegionId">
+	                    <option value="" style="display:none;" disabled selected="selected">請選擇縣市</option>
+	                    <option value="00">不限制</option>
+	                    <option value="01">基隆市</option>
+	                    <option value="02">台北市</option>
+	                    <option value="03">新北市</option>
+	                    <option value="04">桃園縣</option>
+	                    <option value="05">新竹市</option>
+	                    <option value="06">新竹縣</option>
+	                    <option value="07">苗栗縣</option>
+	                    <option value="08">台中市</option>
+	                    <option value="09">彰化縣</option>
+	                    <option value="10">南投縣</option>
+	                    <option value="11">雲林縣</option>
+	                    <option value="12">嘉義市</option>
+	                    <option value="13">嘉義縣</option>
+	                    <option value="14">台南市</option>
+	                    <option value="15">高雄市</option>
+	                    <option value="16">屏東縣</option>
+	                    <option value="17">台東縣</option>
+	                    <option value="18">花蓮縣</option>
+	                    <option value="19">宜蘭縣</option>
+	                    <option value="20">澎湖縣</option>
+	                    <option value="21">金門縣</option>
+	                    <option value="22">連江縣</option>
+	                  </select>
+	                </div>
+	              </div>
+	            </div>
+	          </div>
+	          <div class="col-lg-1"><span class="form-between-line"></span></div>
+	          <div class="col-lg-5 page-utitliy-group">
+	            <div class="form-group-search">
+	              <label for="keyword-query" class="control-label">查詢</label>
+	              <input type="text" class="form-control" id="keyword-query" placeholder="請輸入關鍵字查詢" name="queryKeyWord" value=""/>
+	            </div>
+	            <div class="form-group-action">
+	              <button type="button" class="btn btn-brand btn-round btn-block" onclick="searchPromotion()"><i class="fa fa-search"></i> 查詢</button>
+	            </div>
+	          </div>
+	        </div>
+	        <div class="form-sorting">
+	          
+	          <button id="list-sorting" type="button" class="btn btn-block btn-sorting" onclick="changeAscDesc()">依時間</button>
+	        </div>
+      	</form>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="offer-container offer-list-container">
+        <div class="row">
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20221229194111856" title="2026年台新頂級盛宴，百家美饌75折起">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2022/WM_20221229194111856/WM_20221229194111856_list_image.png" class="card-img-top" alt="2026年台新頂級盛宴，百家美饌75折起">
+              <div class="card-body"> <strong class="card-title">2026年台新頂級盛宴，百家美饌75折起</strong>
+                
+              </div>
+              <div class="card-detail"><strong>2026年台新頂級盛宴，百家美饌75折起</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：台新頂級盛宴，百家美饌75折起 </li>
+                  <li>活動期間：2026-01-01~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20250616161533342" title="王品刷台新，天天享最高6.3%，暑期限時加碼享最高14%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2025/WM_20250616161533342/WM_20250616161533342_list_image.jpg" class="card-img-top" alt="王品刷台新，天天享最高6.3%，暑期限時加碼享最高14%">
+              <div class="card-body"> <strong class="card-title">王品刷台新，天天享最高6.3%，暑期限時加碼享最高14%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>王品刷台新，天天享最高6.3%，暑期限時加碼享最高14%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：王品刷台新，享最高14% </li>
+                  <li>活動期間：2026-01-01~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20230313141741890" title="餐飲多一盤、享最高18.3%優惠">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2023/WM_20230313141741890/WM_20230313141741890_list_image.jpg" class="card-img-top" alt="餐飲多一盤、享最高18.3%優惠">
+              <div class="card-body"> <strong class="card-title">餐飲多一盤、享最高18.3%優惠</strong>
+                
+              </div>
+              <div class="card-detail"><strong>餐飲多一盤、享最高18.3%優惠</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：餐飲多一盤，刷台新信用卡享最高18.3% </li>
+                  <li>活動期間：2025-12-01~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260422173454953" title="聚日式鍋物享獨家贈菜，台新Richart卡享最高14%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260422173454953/WM_20260422173454953_list_image.png" class="card-img-top" alt="聚日式鍋物享獨家贈菜，台新Richart卡享最高14%">
+              <div class="card-body"> <strong class="card-title">聚日式鍋物享獨家贈菜，台新Richart卡享最高14%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>聚日式鍋物享獨家贈菜，台新Richart卡享最高14%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：聚日式鍋物刷台新 享獨家贈菜 </li>
+                  <li>活動期間：2026-07-06~2026-09-30</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260625095304298" title="原燒享獨家贈菜，台新Richart卡享最高14%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260625095304298/WM_20260625095304298_list_image.png" class="card-img-top" alt="原燒享獨家贈菜，台新Richart卡享最高14%">
+              <div class="card-body"> <strong class="card-title">原燒享獨家贈菜，台新Richart卡享最高14%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>原燒享獨家贈菜，台新Richart卡享最高14%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：原燒刷台新卡，享獨家贈菜 </li>
+                  <li>活動期間：2026-07-06~2026-09-30</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260625100122475" title="西堤牛排享獨家贈菜，台新Richart卡享最高14%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260625100122475/WM_20260625100122475_list_image.png" class="card-img-top" alt="西堤牛排享獨家贈菜，台新Richart卡享最高14%">
+              <div class="card-body"> <strong class="card-title">西堤牛排享獨家贈菜，台新Richart卡享最高14%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>西堤牛排享獨家贈菜，台新Richart卡享最高14%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：西堤牛排刷台新卡，享獨家贈菜 </li>
+                  <li>活動期間：2026-07-06~2026-09-30</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260630162148757" title="童玩券專屬，義大皇家酒店用餐85折，滿額享最高9.7%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260630162148757/WM_20260630162148757_list_image.JPG" class="card-img-top" alt="童玩券專屬，義大皇家酒店用餐85折，滿額享最高9.7%">
+              <div class="card-body"> <strong class="card-title">童玩券專屬，義大皇家酒店用餐85折，滿額享最高9.7%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>童玩券專屬，義大皇家酒店用餐85折，滿額享最高9.7%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：童玩券專屬，義大皇家酒店用餐85折 </li>
+                  <li>活動期間：2026-07-01~2026-08-31</li>
+                  <li>適用卡別：<span>信用卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260623175648347" title="摩斯漢堡88折人氣套餐，台新Richart卡享最高11%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260623175648347/WM_20260623175648347_list_image.png" class="card-img-top" alt="摩斯漢堡88折人氣套餐，台新Richart卡享最高11%">
+              <div class="card-body"> <strong class="card-title">摩斯漢堡88折人氣套餐，台新Richart卡享最高11%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>摩斯漢堡88折人氣套餐，台新Richart卡享最高11%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：摩斯漢堡享88折人氣套餐 </li>
+                  <li>活動期間：2026-07-01~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260624155714733" title="必勝客享優惠套餐3折起，台新Richart卡再享最高3.8%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260624155714733/WM_20260624155714733_list_image.png" class="card-img-top" alt="必勝客享優惠套餐3折起，台新Richart卡再享最高3.8%">
+              <div class="card-body"> <strong class="card-title">必勝客享優惠套餐3折起，台新Richart卡再享最高3.8%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>必勝客享優惠套餐3折起，台新Richart卡再享最高3.8%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：必勝客享優惠套餐3折起 </li>
+                  <li>活動期間：2026-07-01~2027-01-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260624164446289" title="肯德基優惠套餐52折起，台新Richart卡再享最高3.8%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260624164446289/WM_20260624164446289_list_image.png" class="card-img-top" alt="肯德基優惠套餐52折起，台新Richart卡再享最高3.8%">
+              <div class="card-body"> <strong class="card-title">肯德基優惠套餐52折起，台新Richart卡再享最高3.8%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>肯德基優惠套餐52折起，台新Richart卡再享最高3.8%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：肯德基優惠套餐52折起 </li>
+                  <li>活動期間：2026-07-01~2027-01-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260402094521944" title="札卡燒肉刷台新享平日95折，Richart卡再享最高3.3%">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260402094521944/WM_20260402094521944_list_image.png" class="card-img-top" alt="札卡燒肉刷台新享平日95折，Richart卡再享最高3.3%">
+              <div class="card-body"> <strong class="card-title">札卡燒肉刷台新享平日95折，Richart卡再享最高3.3%</strong>
+                
+              </div>
+              <div class="card-detail"><strong>札卡燒肉刷台新享平日95折，Richart卡再享最高3.3%</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：札卡燒肉享平日95折 </li>
+                  <li>活動期間：2026-03-20~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+        
+          <div class="offer-box col-xl-4 col-lg-6 col-md-6 mb-4"> <a class="card-holder" href="/tscccms/promotion/detail/WM_20260212111219281" title="foodpanda訂閱pandapro享免費試用及半年制5折">
+            <div class="card card-offer h-100" > 
+              
+              <img src="https://mkp.taishinbank.com.tw/tscccms/campaignPromotions/upload/2026/WM_20260212111219281/WM_20260212111219281_list_image.jpg" class="card-img-top" alt="foodpanda訂閱pandapro享免費試用及半年制5折">
+              <div class="card-body"> <strong class="card-title">foodpanda訂閱pandapro享免費試用及半年制5折</strong>
+                
+              </div>
+              <div class="card-detail"><strong>foodpanda訂閱pandapro享免費試用及半年制5折</strong>
+                <ul class="card-detail-list">
+                  <li>活動介紹：foodpanda享最低3折起 </li>
+                  <li>活動期間：2026-02-01~2026-12-31</li>
+                  <li>適用卡別：<span>信用卡/簽帳金融卡</span></li>
+                </ul>
+                <div class="card-detail-footer">
+                  
+                </div>
+              </div>
+            </div>
+            </a></div>
+ 
+        </div>
+      </div>
+    </div>
+	<!-- 查無資料時顯示 start -->
+    
+    <!-- 查無資料時顯示 end -->
+    <div class="page-pagination">
+      <div class="page-pagination-mobile-action" id="getMorePro">
+        <button type="button" class="btn btn-outline btn-round btn-block btn-brand" onclick="getMoreProList()"><i class="fas fa-plus-circle"></i> 顯示更多</button>
+      </div>
+      <div class="paging-actions">
+        <div class="paging-nav">
+          <button type="button" id="previousPage" class="btn btn-disabled" onclick="previousPage()" ><i class="fal fa-angle-left"></i><span class="sr-only">上一頁</span></button>
+          <input id="nowPage" type="text" class="form-control form-control-paging" value="1" onkeypress="keyEnter()"/>
+          
+          <button type="button" id="nextPage" class="btn" onclick="nextPage()" ><i class="fal fa-angle-right"></i><span class="sr-only">下一頁</span></button>
+        </div>
+        <div class="paging-total"> 共<span class="paging-total-count"><strong>4</strong></span>頁</div>
+      </div>
+    </div>
+    
+	<!-- pop model -->
+	  <div class="modal fade" id="success-feedback" tabindex="-1" role="dialog" aria-labelledby="success-feedback-label" aria-hidden="true" onBlur="closeSuccessModal()">
+	    <div class="modal-dialog modal-dialog-centered" role="document">
+	      <div class="modal-content modal-alert modal-success-alert">
+	        <div class="modal-header">
+	          <h3 class="modal-title" id="success-feedback-label"></h3>
+	          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+	        </div>
+	        <div class="modal-body">
+	          <div class="content-body">
+	            <div class="modal-alert-icon"><i class="far fa-thumbs-up"></i></div>
+	            <div class="modal-alert-content"></div>
+	          </div>
+	        </div>
+	      </div>
+	    </div>
+	  </div>
+    
+  </div>
+				</div>
+			</div>
+		</div>
+		<!--.wrapper-->
+		
+		<!--08162019-移置區B開始-->
+			<div class="page-bottom">
+			<!-- 八字箴言改撈DB by Hank 2020/10/26 -->
+		    <div class="page-alert"> <strong id="mottoTitle">謹慎理財，信用至上</strong>
+		    		<p id = "mottoContent">●差別循環信用利率：一般消費及預借現金為2.88%~15%，依電腦評等而定 ●預借現金手續費：預借現金金額X3.5%+NT150元 ●循環利率之基準日為115年01月02日 ●特店分期廣告已揭露各項相關費用總金額且無其他應繳費用，各期分期利率換算總費用年百分率為0% ●單筆分期各期分期利率換算總費用年百分率為0%-15%</p>
+				</div>
+				<div class="page-social">
+					<div class="page-social-mobile-action">
+						<div class="action-underline"></div>
+						<button type="button"
+							class="btn btn-settings mobile-social-trigger">
+							<i class="far fa-share-alt"></i> 社群總覽
+						</button>
+					</div>
+					<div class="page-social-wrapper">
+						<a href="#" class="mobile-social-close" title="關閉視窗"><i
+							class="fal fa-times"></i><span class="sr-only">關閉視窗</span></a> <strong
+							class="page-social-title">社群總覽</strong>
+						<ul class="page-social-link">
+							<li class="social-line"><a href="https://line.me/R/ti/p/@taishin" title="台新銀行 Line"
+								target="_blank"><span class="social-icon"></span> 台新銀行</a></li>
+							<li class="social-line"><a href="https://pse.is/HAUGN" title="Richart Line"
+								target="_blank"><span class="social-icon"></span> Richart</a></li>
+							<li class="social-facebook"><a href="https://www.facebook.com/Taishinevent/" title="台新優惠市集"
+								target="_blank"><span class="social-icon"></span> 台新優惠市集</a></li>
+							<li class="social-link"><a href="https://www.taishinbank.com.tw/TSB/fanGroup-serviceLink/index.html" title="台新服務網"
+								target="_blank"><span class="social-icon"></span> 台新服務網</a></li>
+						</ul>
+					</div>
+				</div>
+				<div class="page-contact">
+					<ul class="page-contact-link">
+						<li><a href="https://www.taishinbank.com.tw/TSB/about-taishin" title="關於台新" target="_blank">關於台新</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/sitemap" title="網站導覽" target="_blank">網站導覽</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/fanGroup-serviceLink/index.html" title="粉絲團與服務電話" target="_blank">粉絲團與服務電話</a></li>
+						<li><a href="https://ac.taishinbank.com.tw/AccWeb/AW2/index.html" title="無障礙網銀" target="_blank">無障礙網銀</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/about-taishin/brief-introduction-to-the-bank/financeInfo/index.html" title="財務資訊" target="_blank">財務資訊</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/privacy-and-copyright/index.html" title="隱私權保護及著作權聲明" target="_blank">隱私權保護及著作權聲明</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/confidentiality-measures/index.html" title="客戶資料保密措施" target="_blank">客戶資料保密措施</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/confidentiality-measures/index.html" title="個資管理政策聲明" target="_blank">個資管理政策聲明</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/personal/common/legal-disclaimers/index.html" title="法定揭露事項" target="_blank">法定揭露事項</a></li>
+						<li><a href="https://www.taishinbank.com.tw/TSB/personal/common/important-notice/TSBankImportantNotice-000017/" title="瀏覽器版本說明" target="_blank">瀏覽器版本說明</a></li>
+					</ul>
+					<div class="page-contact-info">
+		      	<span>服務專線</span> <span>02-2655-3355(付費電話) / 0800-023-123(限市話)</span> 
+		      	<a href="https://smartrobot.taishinbank.com.tw/Webhook/?eservice=roseweb&amp;utm_source=ts&amp;utm_medium=web&amp;utm_campaign=db_wholesite&amp;utm_content=button_footer" target="_blank" class="btn btn-customer-service">智能客服</a>
+					</div>
+				</div>
+			</div>
+		<!--08162019-移置區B結束-->
+			
+		<div id="footer" class="footer">
+			<div class="footer-wrapper">
+				<div class="footer-legal">
+					©台新國際商業銀行 <span>Copyright Taishin International Bank. All
+						Rights Reserved.</span>
+				</div>
+				<div class="footer-motif"></div>
+			</div>
+			<div class="footer-tools">
+				<a class="go-top" aria-label="回到頁首"><i class="fas fa-triangle"></i></a>
+			</div>
+		</div>
+		<!--.footer-->
+	</div>
+	<!--.page-layout-->
+	<!-- cookie CR by Hank 2021/04/27 -->
+	<!--cookie accept block start-->
+	  <div id="cookie-accept-block" class="cookie-accept-block">
+	    <strong class="cookie-accept-block__desc">本網站使用Cookies以提供您個人化服務，當您繼續瀏覽本網站，即表示台新銀行可以使用您的Cookies。詳請參閱 
+	    	<a class="cookie-accept-block__link" href="https://www.taishinbank.com.tw/TSB/privacy-and-copyright/index.html" target="_blank">隱私權保護及著作權聲明</a>
+	    了解更多詳情。</strong>
+	    <button class="cookie-accept-block__btn">確定</button>
+	  </div>
+	<!--cookie accept block end-->
+
+	<!--script area-->
+	<script src="https://mkp.taishinbank.com.tw/tscccms/js/app.js"></script>
+	<!--initialization-->
+	<script>
+		$(window).on('beforeunload', function() {
+			$(window).scrollTop(0);
+		});
+		$(window).load(function() {
+			AppSlider.init();
+		});
+		$(document).ready(function() {
+			App.init();
+			$('#reset_select').on('click',function(){
+				$('.form-item').removeClass('active');
+			})
+		});
+	</script>
+</body>
+</html>

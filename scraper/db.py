@@ -64,7 +64,10 @@ def init_db(path: str | Path) -> sqlite3.Connection:
 
 
 def upsert_offer(conn: sqlite3.Connection, offer: Offer) -> None:
-    """寫入一筆優惠；(source_url, title) 已存在時更新其餘欄位。"""
+    """寫入一筆優惠；(source_url, title) 已存在時更新其餘欄位。
+
+    不自行 commit——transaction 邊界由 caller 控制（批量入庫時整批一個 transaction）。
+    """
     conn.execute(
         _UPSERT,
         (
@@ -81,7 +84,6 @@ def upsert_offer(conn: sqlite3.Connection, offer: Offer) -> None:
             offer.scraped_at.isoformat(),
         ),
     )
-    conn.commit()
 
 
 def list_offers(conn: sqlite3.Connection) -> list[Offer]:

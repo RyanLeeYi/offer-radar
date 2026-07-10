@@ -23,7 +23,9 @@ feature: TBD（動工日建 code repo 後轉 feature_list.json，本檔搬進 re
 
 ## 需求與驗收標準
 
-### R1：信用卡優惠爬蟲（國泰、中信、玉山）
+### R1：信用卡優惠爬蟲（國泰、台新、富邦）
+
+> 2026/07/10 名單調整（原：國泰、中信、玉山）：中信全站反爬（混淆 JS 挑戰頁）出局；玉山列表 API 被 WAF 擋非瀏覽器請求、需 headless browser，暫緩。改為三家純 HTTP 可爬：國泰（cathay-cube sitemap + .model.json）、台新（mkpcard CMS 靜態頁）、富邦（cardpromote 專站靜態頁）。決策人：Ryan。
 
 - Given 網路可用、SQLite 已初始化
 - When 執行 `python -m scraper.credit_card`
@@ -133,5 +135,5 @@ GET /health → {"status": "ok", "offers_count": int, "last_ingest_at": str|null
 
 ## 開放問題
 
-- [ ] 三家銀行最終名單（暫定國泰、中信、玉山）——若某家反爬嚴重，**遇到就停下來問**要換哪家（決策人：Ryan）
+- [x] 三家銀行最終名單：國泰、台新、富邦（2026/07/10 定案，見 R1 註記；玉山列入未來可加項，需 Playwright）
 - [ ] 資料更新頻率與排程化——MVP 後決定（決策人：Ryan）
