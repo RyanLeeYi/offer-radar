@@ -8,7 +8,7 @@ def test_defaults():
     assert settings.llm_provider == "ollama"
     assert settings.database_path == "data/offers.db"
     assert settings.chroma_path == "data/chroma"
-    assert "multilingual" in settings.embedding_model.lower()
+    assert settings.embedding_model == "BAAI/bge-m3"  # 中文檢索選型見 DECISIONS D6
 
 
 def test_env_override(monkeypatch):

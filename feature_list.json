@@ -25,8 +25,8 @@
       "id": "F4",
       "name": "RAG pipeline（CLI 可問答）",
       "acceptance": "CLI 跑「去好市多刷哪張卡最划算」回中文答案 + ≥1 筆來源；過期優惠不出現在結果",
-      "status": "failing",
-      "evidence": null
+      "status": "passing",
+      "evidence": "2026-07-10 python -m rag.query 實測 PRD 三範例：①好市多→推 Costco聯名卡 2%（來源 5 筆含正解 D000127）②便利商店行動支付→彙整 4 優惠帶【資料N】引用 ③火星旅遊→固定拒答句且 sources=[]（R5 pipeline 層）；過期優惠 F3 ingest 已擋。混合檢索（n-gram $contains + bge-m3 向量）+ qwen3:8b think off；93 tests、ruff clean；code review 3 findings 修 1 緩 1 設計內 1。選型與 prompt 配方見 DECISIONS D6"
     },
     {
       "id": "F5",

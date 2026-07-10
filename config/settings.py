@@ -15,5 +15,7 @@ class Settings(BaseSettings):
     database_path: str = "data/offers.db"
     chroma_path: str = "data/chroma"
     api_base_url: str = "http://localhost:8000"
-    # 中文檢索需要 multilingual 模型（PRD 技術約束）
-    embedding_model: str = "paraphrase-multilingual-MiniLM-L12-v2"
+    # 中文檢索需要 multilingual 模型（PRD 技術約束）。選型實測（DECISIONS D6）：
+    # MiniLM 與 e5-small 鑑別度不足（好市多查詢排不進 top12），bge-m3 排序正確且邊際夠；
+    # 若換回 e5 系列，Embedder 會自動補 query:/passage: 前綴
+    embedding_model: str = "BAAI/bge-m3"

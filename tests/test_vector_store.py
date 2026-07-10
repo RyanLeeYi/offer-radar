@@ -48,6 +48,35 @@ def test_distinct_offer_count(tmp_path):
     assert store.distinct_offer_count() == 2
 
 
+def test_query_returns_nearest_first_with_metadata_and_distance(tmp_path):
+    store = make_store(tmp_path)
+    store.upsert(
+        ids=["1:0", "2:0"],
+        texts=["好市多刷卡回饋", "加油站優惠"],
+        embeddings=[[1.0, 0.0], [0.0, 1.0]],
+        metadatas=[
+            {"offer_id": 1, "valid_to": "", "source_url": "https://a", "title": "好市多"},
+            {"offer_id": 2, "valid_to": "", "source_url": "https://b", "title": "加油"},
+        ],
+    )
+    hits = store.query(embedding=[0.9, 0.1], top_k=2)
+    assert len(hits) == 2
+    assert hits[0].text == "好市多刷卡回饋"
+    assert hits[0].metadata["offer_id"] == 1
+    assert hits[0].distance < hits[1].distance
+
+
+def test_query_top_k_larger_than_collection(tmp_path):
+    store = make_store(tmp_path)
+    upsert_two(store)
+    assert len(store.query(embedding=[0.1, 0.2], top_k=10)) == 2
+
+
+def test_query_empty_collection_returns_empty(tmp_path):
+    store = make_store(tmp_path)
+    assert store.query(embedding=[0.1, 0.2], top_k=5) == []
+
+
 def test_rebuild_clears_previous_content(tmp_path):
     store = make_store(tmp_path)
     upsert_two(store)

@@ -66,7 +66,8 @@ def main() -> int:
     conn = init_db(settings.database_path)
     try:
         store = VectorStore(path=settings.chroma_path)
-        result = ingest(conn, store, Embedder(settings.embedding_model).embed, date.today())
+        embedder = Embedder(settings.embedding_model)
+        result = ingest(conn, store, embedder.embed_passages, date.today())
     finally:
         conn.close()
     print(f"offers={result.offers} chunks={result.chunks}")

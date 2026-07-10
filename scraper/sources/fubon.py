@@ -24,7 +24,16 @@ _BASE = "https://cardpromote.taipeifubon.com.tw/promotion/"
 CATEGORY_URLS = [f"{_BASE}Type?category={code}" for code in "ABCDEF"]
 _DETAIL_HREF = re.compile(r'href="((?:[^"]*/promotion/)?Detail\?sn=[A-Za-z0-9]+)"')
 _TITLE_PREFIX = "富邦信用卡 - "
-_EXCLUDED_SECTIONS = ("may-like", "menu-container", "footer-up")
+# 主內容以外全剔除：側欄促銷 swiper（swiper-container/discount-card）、推薦區、
+# 選單、頁尾（footer-up/footer-dw + <footer>）。雜訊混入 content 會毒化 RAG 檢索
+_EXCLUDED_SECTIONS = (
+    "may-like",
+    "menu-container",
+    "footer-up",
+    "footer-dw",
+    "swiper-container",
+    "discount-card",
+)
 
 
 def list_detail_urls(category_html: str) -> list[str]:
@@ -42,6 +51,8 @@ def parse_detail(detail_html: str, url: str, scraped_at: datetime) -> Offer:
         raise ValueError(f"富邦明細頁缺 title，版面可能已改：{url}")
     title = soup.title.get_text(strip=True).removeprefix(_TITLE_PREFIX).strip()
 
+    for tag in soup.find_all(("footer", "nav", "header")):
+        tag.decompose()
     for class_name in _EXCLUDED_SECTIONS:
         for section in soup.find_all("div", class_=class_name):
             section.decompose()

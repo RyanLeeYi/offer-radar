@@ -214,6 +214,16 @@ class TestFubon:
         assert len(offers) == expected
         assert all(o.bank == "台北富邦" for o in offers)
 
+    def test_parse_detail_excludes_sidebar_and_footer_noise(self):
+        """側欄促銷卡與頁尾雜訊不得混入 content——會毒化 RAG 檢索（F4 實測教訓）。"""
+        url = "https://cardpromote.taipeifubon.com.tw/promotion/Detail?sn=D000275"
+        offer = fubon.parse_detail(read_fixture("fubon_detail_sidebar.html"), url, SCRAPED_AT)
+        assert "Costco聯名卡友專屬優惠" not in offer.content  # 側欄 swiper 卡片標題
+        assert "優食好市多專區享2%回饋" not in offer.content  # 同上
+        assert "24小時服務專線" not in offer.content  # 頁尾
+        assert "©" not in offer.content
+        assert offer.content  # 主內容還在
+
     def test_fetch_skips_detail_on_http_error(self):
         import requests
 
