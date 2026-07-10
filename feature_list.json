@@ -60,8 +60,8 @@
       "id": "F9",
       "name": "README + 乾淨環境驗證",
       "acceptance": "乾淨環境 clone 後照 README + ./init.sh 可跑起；.env.example 齊全；pytest 覆蓋率 ≥ 80%；ruff check 無錯誤；PRD 三個範例問題 Telegram 端手動驗證通過",
-      "status": "failing",
-      "evidence": null
+      "status": "passing",
+      "evidence": "2026-07-11：README.md 新增（定位/架構圖/快速開始/三介面/範例/測試/設計取捨/限制）；乾淨環境驗證——git archive HEAD 到空目錄跑 ./init.sh：uv sync 從零建 venv 下載全依賴 → .env 自動生成 → pytest 158 passed → init OK；.env.example 補齊 EMBEDDING_MODEL（10 個 settings 欄位全對應）；coverage 90%（≥80%）、ruff clean；PRD 三範例 Telegram 端手動驗證於 F6 由 Ryan 完成（含火星旅遊 R5 拒答）。連帶修一致性 bug：settings ollama_model 預設 llama3.1:8b → qwen3:8b（prompt 配方 D6 是針對 qwen3 調的，舊預設會讓乾淨環境跑到未驗過的模型）。⚠️ openai provider 真 API 呼叫（F8 R6）仍待 Ryan 用有效金鑰手動驗一次"
     }
   ]
 }

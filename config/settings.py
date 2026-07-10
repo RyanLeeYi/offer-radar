@@ -8,7 +8,8 @@ class Settings(BaseSettings):
 
     llm_provider: str = "ollama"
     ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.1:8b"
+    # 預設 qwen3:8b：generator 的 prompt 配方（think-off、指令置尾）是針對它實測調的（D6）
+    ollama_model: str = "qwen3:8b"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
     telegram_bot_token: str = ""

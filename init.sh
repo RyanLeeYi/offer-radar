@@ -8,7 +8,7 @@ uv sync
 # 2. 環境變數
 if [ ! -f .env ]; then
   cp .env.example .env
-  echo "⚠️  已從 .env.example 建立 .env——請填入 TELEGRAM_BOT_TOKEN（F6 前）與 OPENAI_API_KEY（F8、選用）"
+  echo "⚠️  已從 .env.example 建立 .env——跑 Bot 前填 TELEGRAM_BOT_TOKEN；用 OpenAI 才需 OPENAI_API_KEY"
 fi
 
 # 3. 本地資料目錄
