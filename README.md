@@ -80,10 +80,10 @@ curl -X POST http://localhost:8000/query \
 
 **Telegram Bot**（`.env` 填 `TELEGRAM_BOT_TOKEN` 後）
 
-一鍵啟動三個 process（Ollama → API → Bot），Ctrl+C 一次全關：
-```powershell
-./run.ps1                            # Windows PowerShell
-```
+一鍵啟動三個 process（Ollama → API → Bot）：
+- **啟動**：雙擊 `run.bat`（或 PowerShell 跑 `./run.ps1`）
+- **關閉**：在視窗按 `Ctrl+C`，或雙擊 `stop.bat`
+
 或手動分開起：
 ```bash
 ollama serve
