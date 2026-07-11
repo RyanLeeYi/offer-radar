@@ -18,7 +18,10 @@ if (-not (Test-Path (Join-Path $VenvBin "python.exe"))) {
 $started = @()  # 本腳本啟動的 process 物件
 
 function Test-Up([string]$Url) {
-    try { Invoke-WebRequest -Uri $Url -TimeoutSec 2 -UseBasicParsing | Out-Null; return $true }
+    # 強制走 IPv4：localhost 會先解析到 IPv6 ::1，但 ollama/uvicorn 只 listen
+    # 127.0.0.1，冷連線得等 ::1 逾時才 fallback，會讓健康檢查誤判成「沒起來」
+    $Url = $Url -replace '://localhost', '://127.0.0.1'
+    try { Invoke-WebRequest -Uri $Url -TimeoutSec 3 -UseBasicParsing | Out-Null; return $true }
     catch { return $false }
 }
 
