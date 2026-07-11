@@ -79,6 +79,12 @@ curl -X POST http://localhost:8000/query \
 ```
 
 **Telegram Bot**（`.env` 填 `TELEGRAM_BOT_TOKEN` 後）
+
+一鍵啟動三個 process（Ollama → API → Bot），Ctrl+C 一次全關：
+```powershell
+./run.ps1                            # Windows PowerShell
+```
+或手動分開起：
 ```bash
 ollama serve
 uv run uvicorn api.main:app          # bot 打這個 API
