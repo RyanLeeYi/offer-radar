@@ -7,6 +7,7 @@
 """
 
 import json
+from urllib.parse import urlparse
 
 from rag.generator import OllamaGenerator
 from rag.pipeline import NO_RESULT_ANSWER, Pipeline
@@ -222,3 +223,63 @@ class TestPipeline:
         pipeline, _ = self.make_pipeline(hits)
         result = pipeline.answer("問題")
         assert len(result.sources) == 5
+
+
+class TestSourceDiversity:
+    """F10：單一來源不得壟斷 context/sources，dedupe 後做來源 round-robin 重排。"""
+
+    def _hit(self, offer_id: int, distance: float, host: str) -> Hit:
+        return Hit(
+            text="內容",
+            metadata={
+                "offer_id": offer_id,
+                "title": f"優惠{offer_id}",
+                "valid_to": "2026-12-31",
+                "source_url": f"https://{host}/{offer_id}",
+            },
+            distance=distance,
+        )
+
+    def _hosts(self, hits: list[Hit]) -> list[str]:
+        return [urlparse(h.metadata["source_url"]).netloc for h in hits]
+
+    def test_round_robin_interleaves_sources(self):
+        from rag.pipeline import _diversify_by_source
+
+        # 台新 3 筆最相關（會壟斷）+ 國泰 1 + 富邦 1
+        hits = [
+            self._hit(1, 0.10, "taishin"),
+            self._hit(2, 0.12, "taishin"),
+            self._hit(3, 0.14, "taishin"),
+            self._hit(4, 0.20, "cathay"),
+            self._hit(5, 0.22, "fubon"),
+        ]
+        out = _diversify_by_source(hits)
+        assert set(self._hosts(out)[:3]) == {"taishin", "cathay", "fubon"}  # 前3涵蓋3家
+        assert out[0].metadata["offer_id"] == 1  # 最相關的第一筆不變
+        taishin = [h.metadata["offer_id"] for h in out if "taishin" in h.metadata["source_url"]]
+        assert taishin == [1, 2, 3]  # 同來源內部順序（相關度）保持
+
+    def test_single_source_unchanged(self):
+        from rag.pipeline import _diversify_by_source
+
+        hits = [self._hit(i, 0.10 + i * 0.01, "taishin") for i in range(4)]
+        out = _diversify_by_source(hits)
+        assert [h.metadata["offer_id"] for h in out] == [0, 1, 2, 3]  # 單一來源不重排
+
+    def test_pipeline_sources_span_multiple_banks(self):
+        # 台新 8 筆壟斷候選（都最相關）+ 國泰 2 + 富邦 2，全部通過門檻
+        hits = (
+            [self._hit(i, 0.10 + i * 0.001, "taishin") for i in range(8)]
+            + [self._hit(100 + i, 0.15 + i * 0.001, "cathay") for i in range(2)]
+            + [self._hit(200 + i, 0.16 + i * 0.001, "fubon") for i in range(2)]
+        )
+
+        class FakeGen:
+            def generate(self, question: str, hits: list[Hit]) -> str:
+                return "推薦"
+
+        pipeline = Pipeline(retriever=FakeRetriever(hits), generator=FakeGen())
+        result = pipeline.answer("網購優惠")
+        hosts = {urlparse(s.source_url).netloc for s in result.sources}
+        assert len(hosts) >= 3  # top5 不再被台新壟斷

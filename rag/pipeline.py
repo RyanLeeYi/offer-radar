@@ -6,6 +6,7 @@ R5 防幻覺從源頭做：檢索無結果或相關度不足 → 直接回固定
 
 from dataclasses import dataclass
 from typing import Protocol
+from urllib.parse import urlparse
 
 from config.settings import Settings
 from rag.vector_store import Hit
@@ -57,8 +58,9 @@ class Pipeline:
             for hit in self._retriever.retrieve(question)
             if hit.keyword_match or hit.distance <= self._max_distance
         ]
-        # 一優惠只留最相關的 chunk：省下的 context 讓沉在後段的其他優惠擠得進來
-        hits = _dedupe_by_offer(relevant)[:MAX_CONTEXT_CHUNKS]
+        # 一優惠只留最相關的 chunk，再依來源 round-robin 重排：避免 keyword 命中率高的
+        # 單一銀行（如台新）壟斷 context 前段，讓答案與 sources 涵蓋多家（F10）
+        hits = _diversify_by_source(_dedupe_by_offer(relevant))[:MAX_CONTEXT_CHUNKS]
         if not hits:
             return Answer(answer=NO_RESULT_ANSWER, sources=[])
         reply = self._generator.generate(question, hits)
@@ -119,6 +121,24 @@ def _dedupe_by_offer(hits: list[Hit]) -> list[Hit]:
         seen.add(offer_id)
         unique.append(hit)
     return unique
+
+
+def _diversify_by_source(hits: list[Hit]) -> list[Hit]:
+    """依來源（source_url host）做 stable round-robin 重排：各來源輪流貢獻一筆。
+
+    只重排傳入的候選（呼叫端已過相關度門檻），不引入新資料。單一來源時等同不動；
+    每輪先取各來源最相關的一筆，故整體最相關者仍在最前，各來源內部順序（相關度）不變。
+    """
+    groups: dict[str, list[Hit]] = {}
+    for hit in hits:
+        key = urlparse(hit.metadata.get("source_url", "")).netloc
+        groups.setdefault(key, []).append(hit)
+    ordered: list[Hit] = []
+    for rank in range(max((len(g) for g in groups.values()), default=0)):
+        for group in groups.values():
+            if rank < len(group):
+                ordered.append(group[rank])
+    return ordered
 
 
 def _sources(hits: list[Hit]) -> list[Source]:

@@ -57,6 +57,13 @@
       "evidence": "2026-07-11 pytest 158 passed（新增 6 條：OpenAIGenerator prompt 含 context+問題、兩 generator 共用 prompt 配方、build_generator ollama/openai-with-key/缺 key fail fast/未知 provider fail fast）、ruff clean；build_generator 缺 key 實測即 raise ValueError（訊息含 OPENAI_API_KEY，非查詢時才炸）；OpenAI SDK 用法經 Context7 確認（OpenAI(api_key=,timeout=) + chat.completions.create().choices[0].message.content）；build_default 改走 build_generator，fail fast 在 API/CLI 啟動期發生。ollama 端 R4 已於 F4/F5 驗過；prompt 配方抽成 build_user_content 單一事實來源，共用測試確保 openai 端行為與 ollama 一致。⚠️ openai provider 真 API 呼叫（R6「openai 下 R4 通過」）需有效付費金鑰，未擅用外洩待輪替的舊 key，待 Ryan 以有效 key 手動驗一次（見 session-handoff）"
     },
     {
+      "id": "F10",
+      "name": "檢索來源多樣性（避免單一銀行洗版）",
+      "acceptance": "同一組相關候選中，單一來源（銀行/支付業者）的優惠不得壟斷給 LLM 的 context 前段：dedupe by offer 後做來源 round-robin 重排，使 context 前段與 sources 涵蓋多家來源；最相關的第一筆維持不變；只重排已通過相關度過濾的候選，不硬塞不相關來源。實測「網購/吃飯」類查詢 sources top5 涵蓋 ≥3 家",
+      "status": "passing",
+      "evidence": "2026-07-11（2週試用實際發現的檢索偏差）：pipeline 加 _diversify_by_source（dedupe by offer 後依 source_url host 做 stable round-robin，各來源輪流貢獻一筆，第一輪即各家最相關者故整體最相關仍在最前）。161 tests（新增 TestSourceDiversity 3 條：round-robin 交錯/單源不動/pipeline sources 跨多家）、ruff clean。真站對照修前→修後 sources top5 家數：網購 3→4、吃飯 2→3、超商 3→4，全達 ≥3 家；context12 分布如「吃飯」台新從壟斷降到與國泰接近（台新6/國泰5）。現有 pipeline 測試不受影響（同來源時 diversify 為 no-op）。根因：台新 CMS 文案用詞泛用、keyword 命中率高，候選池 offer 數占優"
+    },
+    {
       "id": "F9",
       "name": "README + 乾淨環境驗證",
       "acceptance": "乾淨環境 clone 後照 README + ./init.sh 可跑起；.env.example 齊全；pytest 覆蓋率 ≥ 80%；ruff check 無錯誤；PRD 三個範例問題 Telegram 端手動驗證通過",
