@@ -16,6 +16,8 @@ MVP 來源涵蓋 3 銀行 + 2 電支，查詢 miss 率預期不低。原構想�
 | 信任模型 | **分層標示**：網搜結果進獨立 `web_unverified` 層，帶 TTL，回答時明確標示 | 補涵蓋率但不污染可信層 |
 | 時機與回報 | **非同步、不推播**：先回查無，背景補完，下次再問才搜得到 | 實作最簡；推播列為未來可加 |
 | 搜尋實作 | **Tavily API + 既有 LLM 抽取**（路線 A） | 免費額度 1000 次/月；內容乾淨利於抽取；搜尋與抽取分兩步，抽取失敗可只丟棄不入庫。備選：Brave Search API |
+| 搜尋粒度 | **品牌/通路層，不搜商品層**；查詢先正規化 | 優惠掛在通路/品牌層——商品名搜到的是購物頁不是優惠公告；品牌層資料入庫後同品牌其他商品的查詢也受益 |
+| 無品牌時 | **退到消費類別搜**（3C、量販、網購…）；連類別都抽不出才不搜 | 涵蓋面最大；類別搜結果較雜由「抽不出必要欄位就丟棄」防線兜底 |
 | TTL | 預設 **7 天** 到期自動失效 | 優惠變動快，寧可重搜不留舊資料 |
 
 否決的路線：LLM 內建網搜（綁死單一雲端供應商、違背 local-first 與供應商切換敘事）；自架 SearXNG（對補救路徑而言維運太重）。
@@ -27,7 +29,7 @@ MVP 來源涵蓋 3 銀行 + 2 電支，查詢 miss 率預期不低。原構想�
 - `trust_tier`: `verified` | `web_unverified`
 - `expires_at`: TTL 到期時間（僅 web_unverified 使用）
 
-新增 `miss_log` 表：查無的 query 原文 + 時間戳。用途：①防重複搜（24h 內同 query 不重搜）②需求數據，決定下一個正式爬蟲寫誰。
+新增 `miss_log` 表：查無的 query 原文 + 時間戳 + `entity`（品牌/通路，nullable，由背景 job 的查詢正規化步驟回填——F11 寫入時只記 raw query，不依賴 LLM）。用途：①防重複搜（同 entity 24h 內不重搜；entity 尚未回填時退回同 raw query 去重）②需求數據，決定下一個正式爬蟲寫誰。
 
 ChromaDB chunk metadata 同步帶 `trust_tier`；ingest 時清掉已過期的 web_unverified chunk。
 
@@ -38,7 +40,10 @@ ChromaDB chunk metadata 同步帶 `trust_tier`；ingest 時清掉已過期的 we
   → 回覆「目前資料庫沒有相關資訊，已記下這個問題、稍後補查」
   → 寫 miss_log
   → 背景 job：
-      24h 內同 query 已搜過 → 跳過
+      查詢正規化：LLM 從 query 抽 {品牌/通路, 商品, 消費類別}，回填 miss_log.entity
+      24h 內同 entity（無 entity 則同 raw query）已搜過 → 跳過
+      → 組品牌層搜尋詞（「<品牌> 信用卡優惠」「<品牌> 行動支付 回饋」；
+         無品牌退到類別詞「<類別> 信用卡優惠」；連類別都沒有 → 不搜）
       → Tavily 搜尋（include_domains 優先官網網域）
       → LLM 結構化抽取（獨立 prompt，輸出過 Pydantic schema 驗證）
       → 必要欄位齊全才寫入（trust_tier=web_unverified, expires_at=+7d）
