@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_MESSAGE_LIMIT = 4096
 NON_TEXT_REPLY = "請用文字提問"
+PROCESSING_REPLY = "🔍 查詢中，請稍候…"
 SERVICE_DOWN_REPLY = "服務暫時無法使用，請稍後再試。"
 # API 已定義好的錯誤碼 → 使用者訊息（body.error 是給開發者的，這裡說人話）
 _STATUS_REPLIES = {
@@ -76,17 +77,20 @@ class BotHandlers:
     async def on_text(self, update, context) -> None:
         if update.message is None or not update.message.text:
             return
+        # 冷載入下查詢可達數十秒——先回「查詢中」placeholder，拿到結果再就地 edit，
+        # 使用者不對空白畫面乾等，也不另開新訊息洗版
+        placeholder = await update.message.reply_text(PROCESSING_REPLY)
         try:
             result = await asyncio.to_thread(self._client.query, update.message.text)
         except ApiUnavailableError as exc:
             logger.warning("query API 連線失敗：%s", exc)
-            await update.message.reply_text(SERVICE_DOWN_REPLY)
+            await placeholder.edit_text(SERVICE_DOWN_REPLY)
             return
         if result.status == 200:
-            await update.message.reply_text(format_reply(result.body))
+            await placeholder.edit_text(format_reply(result.body))
             return
         logger.warning("query API 回 %d：%s", result.status, result.body)
-        await update.message.reply_text(_STATUS_REPLIES.get(result.status, _FALLBACK_REPLY))
+        await placeholder.edit_text(_STATUS_REPLIES.get(result.status, _FALLBACK_REPLY))
 
     async def on_non_text(self, update, context) -> None:
         if update.message is None:

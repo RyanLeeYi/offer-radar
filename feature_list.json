@@ -104,6 +104,13 @@
       "acceptance": "查無 → 回覆含「已記下這個問題、稍後補查」→ 背景 job 消化 miss_log（24h 去重）→ F13 抽取入庫 → ingest；端到端實測：查無的 query 補查成功後，再次同類查詢可檢索到並帶 F14 警語；背景 job 失敗不影響前台查詢；非同步不推播",
       "status": "failing",
       "evidence": ""
+    },
+    {
+      "id": "F16",
+      "name": "慢查詢體驗：bot 處理中提示 + /query 逾時 30s→90s",
+      "acceptance": "bot 收到文字查詢時立即回覆「查詢中」提示（不讓使用者對空白畫面乾等），查得結果後就地 edit 為答案/錯誤訊息；/query 逾時契約從 30s 放寬到 90s（涵蓋 8B 冷載入 ~24s 的最壞情況，不再被 504 誤砍），bot client timeout 對齊為 >90s；generator transport 120s 仍為最外層上界；單元測試覆蓋處理中提示、edit 落地與逾時常數",
+      "status": "passing",
+      "evidence": "2026-07-15 TDD：①bot on_text 先回 PROCESSING_REPLY「🔍 查詢中，請稍候…」placeholder → 拿到結果就地 edit_text（200/503/504/422/連線失敗五路徑都改 edit 不洗版），test_on_text_shows_processing_then_edits_to_answer 驗 placeholder 首發 + edits==[答案]；②QUERY_TIMEOUT_SECONDS 30→90（test_default_query_timeout_is_90s pin），bot _QUERY_TIMEOUT 35→95（client 要 >90，test 斷言 timeout>90）；PRD line 110 逾時契約同步改 90s。全套 uv run pytest 162 passed、ruff clean。範圍註記：Telegram 端真機 edit 未跑（fake Message/edit_text 注入驗證行為），暖機本身未治（keep_alive Ryan 決定跳過，靠 90s+處理中提示吸收冷載入）"
     }
   ]
 }

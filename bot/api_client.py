@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 import requests
 
-# API 層的 /query 逾時契約是 30 秒（超過它自己會回 504），client 要等得比它久
-_QUERY_TIMEOUT = 35.0
+# API 層的 /query 逾時契約是 90 秒（超過它自己會回 504），client 要等得比它久
+_QUERY_TIMEOUT = 95.0
 _HEALTH_TIMEOUT = 5.0
 
 

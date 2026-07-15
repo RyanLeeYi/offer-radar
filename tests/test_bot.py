@@ -16,6 +16,7 @@ import pytest
 from bot.api_client import ApiResult, ApiUnavailableError, OfferRadarClient
 from bot.handlers import (
     NON_TEXT_REPLY,
+    PROCESSING_REPLY,
     SERVICE_DOWN_REPLY,
     BotHandlers,
     build_start_text,
@@ -88,7 +89,7 @@ def test_client_query_posts_question():
     url, payload, timeout = calls[0]
     assert url == "http://localhost:8000/query"
     assert payload == {"question": "去好市多刷哪張卡最划算"}
-    assert timeout >= 30  # API 層 30 秒逾時契約，client 要等得比它久
+    assert timeout > 90  # API 層 90 秒逾時契約，client 要等得比它久
 
 
 def test_client_health_gets():
@@ -102,17 +103,38 @@ def test_client_health_gets():
 # ---- handlers（假 Update / 假 client）----
 
 
+class FakeSentMessage:
+    """reply_text 回傳的訊息物件——記錄後續 edit_text（就地更新「查詢中」→答案）。"""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.edits: list[str] = []
+
+    async def edit_text(self, text: str, **kwargs) -> None:
+        self.text = text
+        self.edits.append(text)
+
+
 class FakeMessage:
     def __init__(self, text: str | None = None) -> None:
         self.text = text
-        self.replies: list[str] = []
+        self.replies: list[str] = []  # 首發訊息（含「查詢中」placeholder）
+        self.sent: list[FakeSentMessage] = []
 
-    async def reply_text(self, text: str, **kwargs) -> None:
+    async def reply_text(self, text: str, **kwargs) -> FakeSentMessage:
         self.replies.append(text)
+        sent = FakeSentMessage(text)
+        self.sent.append(sent)
+        return sent
 
 
 def make_update(text: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(message=FakeMessage(text=text))
+
+
+def final_text(update: SimpleNamespace) -> str:
+    """使用者最終看到的文字：placeholder 被 edit 後的 .text（沒 edit 就是首發）。"""
+    return update.message.sent[-1].text
 
 
 class FakeClient:
@@ -143,7 +165,7 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def test_on_text_replies_answer_with_sources():
+def test_on_text_shows_processing_then_edits_to_answer():
     client = FakeClient(query_result=ApiResult(status=200, body=QUERY_BODY))
     handlers = BotHandlers(client)
     update = make_update("去好市多刷哪張卡最划算")
@@ -151,9 +173,11 @@ def test_on_text_replies_answer_with_sources():
     run(handlers.on_text(update, context=None))
 
     assert client.questions == ["去好市多刷哪張卡最划算"]
-    reply = update.message.replies[0]
+    assert update.message.replies[0] == PROCESSING_REPLY  # 先回「查詢中」，不空等
+    reply = final_text(update)  # 就地 edit 成答案，不另開新訊息洗版
     assert "推薦 Costco 聯名卡" in reply
     assert "https://example.com/costco" in reply
+    assert update.message.sent[0].edits == [reply]  # 確實是 edit，不是再 reply
 
 
 def test_on_text_maps_503_to_friendly_message():
@@ -163,7 +187,7 @@ def test_on_text_maps_503_to_friendly_message():
 
     run(handlers.on_text(update, context=None))
 
-    assert "知識庫尚未建立" in update.message.replies[0]
+    assert "知識庫尚未建立" in final_text(update)
 
 
 def test_on_text_maps_504_to_friendly_message():
@@ -173,7 +197,7 @@ def test_on_text_maps_504_to_friendly_message():
 
     run(handlers.on_text(update, context=None))
 
-    assert "逾時" in update.message.replies[0]
+    assert "逾時" in final_text(update)
 
 
 def test_on_text_maps_connection_error_to_service_down():
@@ -183,7 +207,8 @@ def test_on_text_maps_connection_error_to_service_down():
 
     run(handlers.on_text(update, context=None))
 
-    assert update.message.replies == [SERVICE_DOWN_REPLY]
+    assert update.message.replies == [PROCESSING_REPLY]  # 只發過 placeholder
+    assert final_text(update) == SERVICE_DOWN_REPLY  # 再就地改成錯誤訊息
 
 
 def test_on_non_text_asks_for_text():
@@ -224,7 +249,7 @@ def test_on_text_maps_422_to_too_long_message():
 
     run(handlers.on_text(update, context=None))
 
-    assert "500" in update.message.replies[0]  # 告訴使用者長度限制，不是籠統的查詢失敗
+    assert "500" in final_text(update)  # 告訴使用者長度限制，不是籠統的查詢失敗
 
 
 def test_handlers_ignore_updates_without_message():

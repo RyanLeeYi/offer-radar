@@ -12,7 +12,7 @@ import time
 
 from fastapi.testclient import TestClient
 
-from api.main import create_app
+from api.main import QUERY_TIMEOUT_SECONDS, create_app
 from rag.pipeline import NO_RESULT_ANSWER, Answer, RagRuntime, Source
 
 ANSWER = Answer(
@@ -111,6 +111,11 @@ def test_query_timeout_504():
     response = client.post("/query", json={"question": "去好市多刷哪張卡最划算"})
     assert response.status_code == 504
     assert response.json() == {"error": "LLM 回應逾時，請稍後再試"}
+
+
+def test_default_query_timeout_is_90s():
+    # 契約放寬：8B 冷載入實測 ~24s，30s 會誤砍；90s 涵蓋最壞情況（transport 120s 仍為外層上界）
+    assert QUERY_TIMEOUT_SECONDS == 90.0
 
 
 def test_health_reports_counts():

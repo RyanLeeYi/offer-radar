@@ -1,6 +1,15 @@
 # Session Handoff
 
-> 最後更新：2026-07-11 03:10
+> 最後更新：2026-07-15
+
+## 這個 session 做了（F16 — 慢查詢體驗）
+
+- **F16 passing**：bot 處理中提示 + /query 逾時 30s→90s（TDD，162 tests pass、ruff clean）
+  - `bot/handlers.py`：`on_text` 先回 `PROCESSING_REPLY`「🔍 查詢中，請稍候…」placeholder，拿到結果後 `edit_text` 就地更新（200/503/504/422/連線失敗五路徑全改 edit，不另發新訊息洗版）
+  - `api/main.py`：`QUERY_TIMEOUT_SECONDS` 30→90（涵蓋 8B 冷載入 ~24s 最壞情況；transport 120s 仍為外層上界）；`bot/api_client.py` `_QUERY_TIMEOUT` 35→95（client 要 >90）
+  - `docs/prd/PRD…md` line 110 逾時契約同步改 90s（SSOT）
+  - **背景**：Ryan 決定不加 `keep_alive`（正常使用間隔常 >2h，預設 5min 夠用），暖機不治本，改用「90s 逾時 + 處理中提示」吸收冷載入的體感
+  - ⚠️ Telegram 端真機 edit 未跑（fake 注入驗行為）；bot 要**重啟**才生效
 
 ## 這個 session 做了（F7 + F8）
 
@@ -29,7 +38,7 @@
   1. **循環活動效期會過時**：街口「5 號會員日」等每月循環活動抽到的是本期領券窗口（如 7/1–7/5），過期後要等下次爬蟲重跑才更新——排程爬蟲（cron）可解，F9 後考慮
   2. **icash Pay 分頁只從第 1 頁發現**：若日後分頁截斷（1 2 3 … 12），後面頁會漏抓且無警訊；街口 RSC payload 解析對改版較脆（D8 代價）
   3. **jkopay RSC chunk 若帶非 JSON 跳脫（\x）會整塊丟棄**：現況實測 19/19 campaign 都解得出來，未修
-  4. **DB 路徑雙軌**：runner 用 `OFFER_RADAR_DB`、config/settings 用 `DATABASE_PATH`——F8/F9 統一進 config 時一併收（連同 bot 35s/api 30s 逾時常數兩處）
+  4. **DB 路徑雙軌**：runner 用 `OFFER_RADAR_DB`、config/settings 用 `DATABASE_PATH`——F8/F9 統一進 config 時一併收（連同 bot 95s/api 90s 逾時常數兩處，F16 後仍是兩處硬編碼，僅值改）
   5. **單一 PoliteClient 跨網域共用 1s 間隔**：來源多了以後可改 per-domain client＋平行抓，MVP 不動
   6. 測試側小債：`read_fixture` 在兩個測試檔重複（可抽 conftest.py）；skip-on-http-error 測試五份同構（可改直測 `_shared`）
   7. 前 session 遺留照舊：Ollama 閒置卸載（504 冷載入）、**bot token 建議 BotFather revoke**、`.env.example` 缺條目（F9）、504 zombie thread、Chroma 併發無保證
@@ -42,4 +51,4 @@
 2. F9 README 是對外文稿 → 先讀 vault `identity/voice-and-tone.md`（若存在）
 3. 收官走 vault PLAN 的 checklist + `sop/after-action.md`（成功指標對答案、harness 消融檢討、成就故事、歸檔）
 4. F8 遺留：openai provider 真 API 手動驗一次（見上）
-5. 順手收技術債：DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 35s/api 30s 逾時常數兩處，統一進 config
+5. 順手收技術債：DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 95s/api 90s 逾時常數兩處，統一進 config

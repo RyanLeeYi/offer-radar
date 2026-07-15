@@ -2,8 +2,8 @@
 
 啟動：``uv run uvicorn api.main:app``。重物件（torch/embedding 模型）在 lifespan
 才組裝，import 本模組不觸發；測試經 create_app 注入 RagRuntime（fake），
-完全不碰網路與模型。PRD 的 30 秒 LLM 逾時契約在這層做（generator transport
-層是 120 秒容忍冷載入）。
+完全不碰網路與模型。LLM 逾時契約在這層做：90 秒（涵蓋 8B 冷載入實測 ~24s 的
+最壞情況，30 秒會誤砍；generator transport 層 120 秒仍為最外層上界）。
 """
 
 import asyncio
@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from api.schemas import ErrorResponse, HealthResponse, QueryRequest, QueryResponse, SourceOut
 from rag.pipeline import RagRuntime, build_default
 
-QUERY_TIMEOUT_SECONDS = 30.0
+QUERY_TIMEOUT_SECONDS = 90.0
 KB_NOT_READY_ERROR = "知識庫尚未建立"
 LLM_TIMEOUT_ERROR = "LLM 回應逾時，請稍後再試"
 

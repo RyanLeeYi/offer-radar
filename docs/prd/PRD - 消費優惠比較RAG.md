@@ -107,7 +107,7 @@ GET /health → {"status": "ok", "offers_count": int, "last_ingest_at": str|null
 
 - 空 body / 缺 `question` / question 超過 500 字 → 422（FastAPI validation error）
 - 目標網站改版導致某來源爬取失敗 → 該來源 log ERROR、**既有資料保留不清空**、程式以非 0 exit code 結束（其他來源繼續爬完）
-- LLM 逾時（> 30s）→ 504 `{"error": "LLM 回應逾時，請稍後再試"}`
+- LLM 逾時（> 90s；放寬自 30s 以涵蓋 8B 冷載入 ~24s 最壞情況，transport 層 120s 為外層上界）→ 504 `{"error": "LLM 回應逾時，請稍後再試"}`
 - ChromaDB 尚未建庫 → `/query` 回 503 `{"error": "知識庫尚未建立"}`
 - Telegram 收到非文字訊息（貼圖、圖片）→ 回覆「請用文字提問」
 
