@@ -74,6 +74,7 @@
       "id": "F11",
       "name": "miss_log 記錄與 24h 防重複（web 網搜補資料 1/5）",
       "acceptance": "查無（拒答句）時將 query 原文 + 時間戳寫入 miss_log 表（含 entity 欄位，寫入時為 null、由 F13 正規化回填，F11 本身不依賴 LLM）；24h 去重以 entity 為 key、entity 為 null 時退回 raw query；pytest 覆蓋寫入/兩種去重/跨 24h 邊界。設計見 docs/superpowers/specs/2026-07-12-web-search-fallback-design.md",
+      "prerequisites": [],
       "status": "failing",
       "evidence": ""
     },
@@ -81,6 +82,7 @@
       "id": "F12",
       "name": "offers 分層信任：trust_tier + expires_at + 過期清理（web 網搜補資料 2/5）",
       "acceptance": "offers 表新增 trust_tier（verified|web_unverified）與 expires_at；既有五個爬蟲來源寫入自動標 verified 且不設 TTL、行為不變（158+ tests 仍全過）；ChromaDB chunk metadata 帶 trust_tier；rag.ingest 排除已過期 web_unverified 資料",
+      "prerequisites": [],
       "status": "failing",
       "evidence": ""
     },
@@ -88,6 +90,10 @@
       "id": "F13",
       "name": "查詢正規化 + Tavily 搜尋 + LLM 結構化抽取 pipeline（web 網搜補資料 3/5）",
       "acceptance": "查詢正規化：LLM 從 miss query 抽 {品牌/通路, 商品, 消費類別} 並回填 miss_log.entity；搜尋詞用品牌層組合（不拿 raw query 直搜），無品牌退類別詞、連類別都抽不出則不搜；Tavily（include_domains 優先官網）結果經獨立抽取 prompt 產出結構化 Offer，Pydantic schema 驗證通過才寫入（trust_tier=web_unverified, expires_at=+7d）；抽不出必要欄位整筆丟棄不入庫；TAVILY_API_KEY 只從 .env 讀、缺 key fail fast；網搜內容視為不可信輸入不影響 prompt 行為",
+      "prerequisites": [
+        "F11",
+        "F12"
+      ],
       "status": "failing",
       "evidence": ""
     },
@@ -95,6 +101,9 @@
       "id": "F14",
       "name": "回答標示 unverified 警語（web 網搜補資料 4/5）",
       "acceptance": "引用 web_unverified 資料的結論必附「⚠️ 來自網路搜尋、未經驗證，使用前請確認官網」；全部來自 verified 時回答行為與現狀相同（既有 pipeline 測試不變）；混合來源時只對 unverified 條目標示",
+      "prerequisites": [
+        "F12"
+      ],
       "status": "failing",
       "evidence": ""
     },
@@ -102,6 +111,12 @@
       "id": "F15",
       "name": "查無背景補查 job 端到端串接（web 網搜補資料 5/5）",
       "acceptance": "查無 → 回覆含「已記下這個問題、稍後補查」→ 背景 job 消化 miss_log（24h 去重）→ F13 抽取入庫 → ingest；端到端實測：查無的 query 補查成功後，再次同類查詢可檢索到並帶 F14 警語；背景 job 失敗不影響前台查詢；非同步不推播",
+      "prerequisites": [
+        "F11",
+        "F12",
+        "F13",
+        "F14"
+      ],
       "status": "failing",
       "evidence": ""
     },
