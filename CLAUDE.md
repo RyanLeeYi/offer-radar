@@ -31,3 +31,14 @@
 7. `reward_rate` 保留原文不解析（PRD 技術約束）
 8. session 結束前更新 `session-handoff.md`（L2 起）
 9. 收官（session 結束）時檢查 `git status` + 未推 commit：程式碼有改動就 commit 並 `git push`（remote：github.com/RyanLeeYi/offer-radar）
+10. 收工時回寫 vault 的 `DEVLOG.md` / `DECISIONS.md`（路徑見下方「Vault 連動」）
+
+## Vault 連動
+
+專案的 PLAN / DEVLOG / DECISIONS 在
+`C:\Users\user\OneDrive\Desktop\Obsidian\projects\2026-07-消費優惠比較RAG\`。
+
+- **開場先讀那裡的 `PLAN.md`**：為什麼做、作品集定位、成功指標都在 vault，這個 repo 只有「怎麼做」
+- **收工時回寫兩處**：`DEVLOG.md` 記一筆（卡點、解法、有數字記數字）；難回頭的技術選擇寫 `DECISIONS.md`
+- repo 的 `session-handoff.md` 是給下一個 agent 看的；vault 的 `DEVLOG.md` 是給 Ryan 累積成就故事用的。兩者都要寫，不能互相取代
+- 寫入 vault 的規則以 vault 根目錄 `AGENTS.md` 為準（增刪檔案要在同一輪 response 內更新 `INDEX.md`）
