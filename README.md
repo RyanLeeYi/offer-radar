@@ -119,7 +119,7 @@ uv run ruff check .
 
 爬蟲解析全部用本地 HTML fixture，測試不打真站。
 
-## 設計取捨（詳見 `docs/prd/` 與開發紀錄）
+## 設計取捨（詳見 `docs/archive/` 與開發紀錄）
 
 - **純向量檢索對精確商家名有天花板**——「好市多」的正解藏在長條款 chunk 裡，換三種 embedding 都排不進 top-k。改用**混合檢索**（中文 n-gram 精確匹配 + 向量），關鍵詞命中免距離門檻。
 - **防幻覺兩道防線**——檢索門檻做 sanity check，真正的防線是 prompt 指令要求「資料都無關才拒答」+ pipeline 層清空 sources。實測 `qwen3:8b` 對 prompt 位置敏感（拒答句放 system role 會無條件拒答），配方是逐次實驗調出來的。

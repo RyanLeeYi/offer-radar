@@ -1,76 +1,6 @@
 {
   "features": [
     {
-      "id": "F1",
-      "name": "資料模型 + SQLite schema",
-      "acceptance": "uv run pytest tests/test_models.py 全過：可插入/查詢 offer；offers 表欄位符合 PRD 介面契約（title/content/source_url NOT NULL、valid_to nullable）；source_url+title upsert 不產生重複",
-      "status": "passing",
-      "evidence": "2026-07-08 pytest 15 passed（schema/insert-query/upsert 不重複/驗證/immutable/自建父目錄/bank-provider 契約）；coverage scraper 100%；ruff clean；code review 3 findings 修 2（批量 commit 效率留 F2）"
-    },
-    {
-      "id": "F2",
-      "name": "信用卡爬蟲 ×3 家（國泰、台新、富邦）",
-      "acceptance": "PRD R1：執行 python -m scraper.credit_card 後 offers 表新增/更新 ≥ 30 筆，必含 title/content/source_url/bank/scraped_at；重複執行不重複入庫；某來源失敗時 log ERROR、既有資料保留、非 0 exit code（名單 2026/07/10 由國泰/中信/玉山改為國泰/台新/富邦，見 PRD R1 註記）",
-      "status": "passing",
-      "evidence": "2026-07-10 實跑 3 輪：243 筆入庫（國泰 110/台新 97/富邦 36）、必填欄位 0 缺、重跑 total 不變且 (source_url,title) 重複 0、exit 0；失敗隔離（單來源例外/空結果→ERROR+exit 1、既有資料保留）由 tests/test_credit_card_main.py 驗證；pytest 47 passed、coverage 95%、ruff clean；code review 7 findings 修 5（HTTP 單頁隔離/跨年效期/來源級 transaction/共用管線/AEM itemsOrder），遺留 2 筆見 session-handoff"
-    },
-    {
-      "id": "F3",
-      "name": "chunker + embedder + ChromaDB ingest",
-      "acceptance": "PRD R3：python -m rag.ingest 後 ChromaDB 筆數 = SQLite 未過期優惠筆數；每 chunk metadata 含 offer_id/valid_to/source_url",
-      "status": "passing",
-      "evidence": "2026-07-10 實跑 python -m rag.ingest：228 筆未過期優惠 → 1543 chunks；ChromaDB distinct offer_id=228=SQLite active（total 243/active 228），count=1543，metadata 含 offer_id/valid_to/source_url/title；chunk 上限 450 字、全量重建（rebuild→upsert）重跑 idempotent；embedding=paraphrase-multilingual-MiniLM-L12-v2（D5）；pytest 64 passed（chunker 6/vector_store 4/ingest 5 + 既有）、ruff clean"
-    },
-    {
-      "id": "F4",
-      "name": "RAG pipeline（CLI 可問答）",
-      "acceptance": "CLI 跑「去好市多刷哪張卡最划算」回中文答案 + ≥1 筆來源；過期優惠不出現在結果",
-      "status": "passing",
-      "evidence": "2026-07-10 python -m rag.query 實測 PRD 三範例：①好市多→推 Costco聯名卡 2%（來源 5 筆含正解 D000127）②便利商店行動支付→彙整 4 優惠帶【資料N】引用 ③火星旅遊→固定拒答句且 sources=[]（R5 pipeline 層）；過期優惠 F3 ingest 已擋。混合檢索（n-gram $contains + bge-m3 向量）+ qwen3:8b think off；93 tests、ruff clean；code review 3 findings 修 1 緩 1 設計內 1。選型與 prompt 配方見 DECISIONS D6"
-    },
-    {
-      "id": "F5",
-      "name": "FastAPI /query + /health",
-      "acceptance": "PRD R4+R5：POST /query 回 200 含 answer+sources；無關問題回「目前資料庫沒有相關優惠」且 sources=[]；缺 question/超 500 字回 422；未建庫回 503；Swagger 可測",
-      "status": "passing",
-      "evidence": "2026-07-11 pytest 108 passed（test_api 10 條：200/拒答透傳/缺·空·超500字→422/500字邊界200/未建庫503且不打LLM/逾時504/health×2）、ruff clean、coverage 90%；實跑 uvicorn+真庫 228 優惠：PRD 三範例全過（好市多→富邦Costco聯名卡2%、便利商店→彙整4優惠、火星→固定句+sources=[]）、/health {ok, 228, last_ingest_at}、Swagger /docs 200、504 冷查詢實觸發（30.2s）；acceptance-verifier 逐條 PASS；code review 10 findings 修 7（跨process rebuild NotFoundError、collection metadata 快取、partial injection、/health 全量掃）緩 3 記 handoff。設計見 DECISIONS D7"
-    },
-    {
-      "id": "F6",
-      "name": "Telegram Bot",
-      "acceptance": "PRD R7：文字訊息 → 呼叫 /query 回 answer+來源連結；/start 回使用說明；非文字訊息回「請用文字提問」",
-      "status": "passing",
-      "evidence": "2026-07-11 pytest 129 passed（test_bot 21 條：R7 三行為/503/504/422/連線失敗/edited message 不派送/token fail fast）、ruff clean、bot coverage 86%；Ryan 於 Telegram 實測 @ryan_offer_radar_bot：/start 使用說明、文字問題（首發冷載入觸發 504 友善訊息→重問 200 帶來源）、貼圖→請用文字提問，API/bot log 對應（sendMessage 200 ×4、POST /query 504→200）；缺 token 實跑 exit 1 明確錯誤；acceptance-verifier 逐條 PASS；code review 8 findings 修 5（edited_message None 崩潰、422 無對應訊息、吞錯不 log、長度硬上限、transport 重複）駁 1 緩 2"
-    },
-    {
-      "id": "F7",
-      "name": "電子支付爬蟲 ×2 家（街口、icash Pay）",
-      "acceptance": "PRD R2：python -m scraper.e_payment 後 ≥ 10 筆，provider 欄位標明支付業者；其餘行為同 R1（名單 2026/07/11 由 LINE Pay/街口改為街口/icash Pay，見 PRD R2 註記）",
-      "status": "passing",
-      "evidence": "2026-07-11 pytest 152 passed（e_payment sources 21 條 + main 接線 1 條：R2 三行為/列表去重/假 slug 排除/全形～效期/樣板日期防護/單頁失敗隔離）、ruff clean、scraper coverage 95%；實跑 5 輪：52 筆入庫（街口 19/icash Pay 33）、必填欄位 0 缺、重跑 total 不變且 (source_url,title) 重複 0、exit 0；失敗隔離（fetch 與入庫層皆 rollback 隔離）由共用 runner 測試驗證；acceptance-verifier 逐條 PASS；code review 8 角度 30 candidates 聚 12 機制修 12 緩 6 記 handoff；ingest 後 Chroma distinct 275=SQLite active、1799 chunks，檢索層實測街口/icash Pay 優惠 keyword match 進 top-3。名單決策見 DECISIONS D8"
-    },
-    {
-      "id": "F8",
-      "name": "OpenAI 切換支援",
-      "acceptance": "PRD R6：LLM_PROVIDER=ollama 與 openai 下 R4 均通過；openai 缺 OPENAI_API_KEY 時啟動即 fail fast 並輸出明確錯誤",
-      "status": "passing",
-      "evidence": "2026-07-11 pytest 158 passed（新增 6 條：OpenAIGenerator prompt 含 context+問題、兩 generator 共用 prompt 配方、build_generator ollama/openai-with-key/缺 key fail fast/未知 provider fail fast）、ruff clean；build_generator 缺 key 實測即 raise ValueError（訊息含 OPENAI_API_KEY，非查詢時才炸）；OpenAI SDK 用法經 Context7 確認（OpenAI(api_key=,timeout=) + chat.completions.create().choices[0].message.content）；build_default 改走 build_generator，fail fast 在 API/CLI 啟動期發生。ollama 端 R4 已於 F4/F5 驗過；prompt 配方抽成 build_user_content 單一事實來源，共用測試確保 openai 端行為與 ollama 一致。⚠️ openai provider 真 API 呼叫（R6「openai 下 R4 通過」）需有效付費金鑰，未擅用外洩待輪替的舊 key，待 Ryan 以有效 key 手動驗一次（見 session-handoff）"
-    },
-    {
-      "id": "F10",
-      "name": "檢索來源多樣性（避免單一銀行洗版）",
-      "acceptance": "同一組相關候選中，單一來源（銀行/支付業者）的優惠不得壟斷給 LLM 的 context 前段：dedupe by offer 後做來源 round-robin 重排，使 context 前段與 sources 涵蓋多家來源；最相關的第一筆維持不變；只重排已通過相關度過濾的候選，不硬塞不相關來源。實測「網購/吃飯」類查詢 sources top5 涵蓋 ≥3 家",
-      "status": "passing",
-      "evidence": "2026-07-11（2週試用實際發現的檢索偏差）：pipeline 加 _diversify_by_source（dedupe by offer 後依 source_url host 做 stable round-robin，各來源輪流貢獻一筆，第一輪即各家最相關者故整體最相關仍在最前）。161 tests（新增 TestSourceDiversity 3 條：round-robin 交錯/單源不動/pipeline sources 跨多家）、ruff clean。真站對照修前→修後 sources top5 家數：網購 3→4、吃飯 2→3、超商 3→4，全達 ≥3 家；context12 分布如「吃飯」台新從壟斷降到與國泰接近（台新6/國泰5）。現有 pipeline 測試不受影響（同來源時 diversify 為 no-op）。根因：台新 CMS 文案用詞泛用、keyword 命中率高，候選池 offer 數占優"
-    },
-    {
-      "id": "F9",
-      "name": "README + 乾淨環境驗證",
-      "acceptance": "乾淨環境 clone 後照 README + ./init.sh 可跑起；.env.example 齊全；pytest 覆蓋率 ≥ 80%；ruff check 無錯誤；PRD 三個範例問題 Telegram 端手動驗證通過",
-      "status": "passing",
-      "evidence": "2026-07-11：README.md 新增（定位/架構圖/快速開始/三介面/範例/測試/設計取捨/限制）；乾淨環境驗證——git archive HEAD 到空目錄跑 ./init.sh：uv sync 從零建 venv 下載全依賴 → .env 自動生成 → pytest 158 passed → init OK；.env.example 補齊 EMBEDDING_MODEL（10 個 settings 欄位全對應）；coverage 90%（≥80%）、ruff clean；PRD 三範例 Telegram 端手動驗證於 F6 由 Ryan 完成（含火星旅遊 R5 拒答）。連帶修一致性 bug：settings ollama_model 預設 llama3.1:8b → qwen3:8b（prompt 配方 D6 是針對 qwen3 調的，舊預設會讓乾淨環境跑到未驗過的模型）。⚠️ openai provider 真 API 呼叫（F8 R6）仍待 Ryan 用有效金鑰手動驗一次"
-    },
-    {
       "id": "F11",
       "name": "miss_log 記錄與 24h 防重複（web 網搜補資料 1/5）",
       "acceptance": "查無（拒答句）時將 query 原文 + 時間戳寫入 miss_log 表（含 entity 欄位，寫入時為 null、由 F13 正規化回填，F11 本身不依賴 LLM）；24h 去重以 entity 為 key、entity 為 null 時退回 raw query；pytest 覆蓋寫入/兩種去重/跨 24h 邊界。設計見 docs/superpowers/specs/2026-07-12-web-search-fallback-design.md",
@@ -119,13 +49,6 @@
       ],
       "status": "failing",
       "evidence": ""
-    },
-    {
-      "id": "F16",
-      "name": "慢查詢體驗：bot 處理中提示 + /query 逾時 30s→90s",
-      "acceptance": "bot 收到文字查詢時立即回覆「查詢中」提示（不讓使用者對空白畫面乾等），查得結果後就地 edit 為答案/錯誤訊息；/query 逾時契約從 30s 放寬到 90s（涵蓋 8B 冷載入 ~24s 的最壞情況，不再被 504 誤砍），bot client timeout 對齊為 >90s；generator transport 120s 仍為最外層上界；單元測試覆蓋處理中提示、edit 落地與逾時常數",
-      "status": "passing",
-      "evidence": "2026-07-15 TDD：①bot on_text 先回 PROCESSING_REPLY「🔍 查詢中，請稍候…」placeholder → 拿到結果就地 edit_text（200/503/504/422/連線失敗五路徑都改 edit 不洗版），test_on_text_shows_processing_then_edits_to_answer 驗 placeholder 首發 + edits==[答案]；②QUERY_TIMEOUT_SECONDS 30→90（test_default_query_timeout_is_90s pin），bot _QUERY_TIMEOUT 35→95（client 要 >90，test 斷言 timeout>90）；PRD line 110 逾時契約同步改 90s。全套 uv run pytest 162 passed、ruff clean。範圍註記：Telegram 端真機 edit 未跑（fake Message/edit_text 注入驗證行為），暖機本身未治（keep_alive Ryan 決定跳過，靠 90s+處理中提示吸收冷載入）"
     }
   ]
 }
