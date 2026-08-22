@@ -74,6 +74,12 @@ def record_miss(
     return True
 
 
+def set_entity(conn: Connection, miss_id: int, entity: str) -> None:
+    """回填查詢正規化抽出的 entity（F13 產出，F15 背景 job 收尾時呼叫）。"""
+    conn.execute("UPDATE miss_log SET entity = ? WHERE id = ?", (entity, miss_id))
+    conn.commit()
+
+
 def list_misses(conn: Connection) -> list[Miss]:
     """讀出所有查無記錄（背景補查 job 的資料來源，也是「下一個爬蟲寫誰」的需求數據）。"""
     rows = conn.execute(

@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen3:8b"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
+    # F13 網搜補資料：缺 key 由 rag/web_search.py 的 build_search fail fast
+    tavily_api_key: str = ""
     telegram_bot_token: str = ""
     database_path: str = "data/offers.db"
     chroma_path: str = "data/chroma"

@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from rag.miss_log import DEDUPE_WINDOW, init_miss_log, list_misses, record_miss
+from rag.miss_log import DEDUPE_WINDOW, init_miss_log, list_misses, record_miss, set_entity
 from scraper.db import init_db
 
 NOW = datetime(2026, 8, 22, 10, 0, 0)
@@ -102,6 +102,31 @@ class TestWindowBoundary:
 
     def test_window_is_24_hours(self):
         assert DEDUPE_WINDOW == timedelta(hours=24)
+
+
+class TestSetEntity:
+    """F13：查詢正規化抽出 entity 後回填 miss_log（背景 job 串接留給 F15）。"""
+
+    def test_backfills_entity_by_id(self, conn):
+        record_miss(conn, "全聯有什麼優惠", now=NOW)
+        miss_id = list_misses(conn)[0].id
+
+        set_entity(conn, miss_id, "全聯")
+
+        misses = list_misses(conn)
+        assert misses[0].entity == "全聯"
+
+    def test_only_targeted_row_updated(self, conn):
+        record_miss(conn, "全聯有什麼優惠", now=NOW)
+        record_miss(conn, "家樂福有什麼優惠", now=NOW + timedelta(hours=1))
+        first_id = list_misses(conn)[0].id
+
+        set_entity(conn, first_id, "全聯")
+
+        misses = {m.id: m.entity for m in list_misses(conn)}
+        assert misses[first_id] == "全聯"
+        other_id = [m for m in list_misses(conn) if m.id != first_id][0].id
+        assert misses[other_id] is None
 
 
 class TestRecorderWiring:
