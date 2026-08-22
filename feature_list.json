@@ -45,6 +45,7 @@
       "touches": [
         "rag/web_search.py",
         "rag/extractor.py",
+        "rag/llm.py",
         "rag/miss_log.py",
         "config/settings.py",
         ".env.example",
