@@ -137,3 +137,82 @@ class TestValidation:
         offer = make_offer()
         with pytest.raises(AttributeError):
             offer.title = "改掉"
+
+
+class TestTrustTier:
+    """F12：offers 分層信任——爬蟲來源預設 verified 不設 TTL，網搜資料另立一層帶到期時間。"""
+
+    def test_defaults_to_verified_without_ttl(self, conn):
+        """既有五個爬蟲來源一行 code 都不必改，寫進去就是 verified。"""
+        upsert_offer(conn, make_offer())
+        got = list_offers(conn)[0]
+        assert got.trust_tier == "verified"
+        assert got.expires_at is None
+
+    def test_web_unverified_round_trips_with_expires_at(self, conn):
+        expires = datetime(2026, 8, 29, 10, 0, 0)
+        upsert_offer(conn, make_offer(trust_tier="web_unverified", expires_at=expires))
+        got = list_offers(conn)[0]
+        assert got.trust_tier == "web_unverified"
+        assert got.expires_at == expires
+
+    def test_unknown_trust_tier_rejected(self):
+        with pytest.raises(ValueError, match="trust_tier"):
+            make_offer(trust_tier="probably_fine")
+
+    def test_verified_may_not_carry_ttl(self):
+        """TTL 只給 web_unverified 用；標錯層的資料會被 ingest 靜默丟掉，寧可當場炸。"""
+        with pytest.raises(ValueError, match="expires_at"):
+            make_offer(expires_at=datetime(2026, 8, 29, 10, 0, 0))
+
+    def test_upsert_updates_trust_columns(self, conn):
+        upsert_offer(conn, make_offer(trust_tier="web_unverified", expires_at=datetime(2026, 8, 29)))
+        upsert_offer(conn, make_offer())  # 同 (source_url, title) → 被正式爬蟲覆蓋
+        got = list_offers(conn)[0]
+        assert (got.trust_tier, got.expires_at) == ("verified", None)
+
+
+class TestLegacySchemaMigration:
+    """既有正式站的 offers.db（275 筆）沒有這兩欄，init_db 要就地補上、既有資料視為 verified。"""
+
+    def _legacy_db(self, path):
+        import sqlite3
+
+        conn = sqlite3.connect(path)
+        conn.execute(
+            "CREATE TABLE offers ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, source_type TEXT NOT NULL, bank TEXT, "
+            "provider TEXT, title TEXT NOT NULL, content TEXT NOT NULL, channel TEXT, "
+            "reward_rate TEXT, valid_from TEXT, valid_to TEXT, source_url TEXT NOT NULL, "
+            "scraped_at TEXT NOT NULL, UNIQUE (source_url, title))"
+        )
+        conn.execute(
+            "INSERT INTO offers (source_type, bank, title, content, source_url, scraped_at) "
+            "VALUES ('credit_card', '國泰', '舊資料', '舊內容', 'https://example.com/old', "
+            "'2026-07-08T12:00:00')"
+        )
+        conn.commit()
+        conn.close()
+
+    def test_init_db_adds_missing_columns(self, tmp_path):
+        path = tmp_path / "legacy.db"
+        self._legacy_db(path)
+
+        conn = init_db(path)
+        try:
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(offers)")}
+            assert {"trust_tier", "expires_at"} <= columns
+            got = list_offers(conn)[0]
+            assert (got.title, got.trust_tier, got.expires_at) == ("舊資料", "verified", None)
+        finally:
+            conn.close()
+
+    def test_migration_is_idempotent(self, tmp_path):
+        path = tmp_path / "legacy.db"
+        self._legacy_db(path)
+        init_db(path).close()
+        conn = init_db(path)  # 第二次不得因欄位已存在而炸
+        try:
+            assert count_offers(conn) == 1
+        finally:
+            conn.close()

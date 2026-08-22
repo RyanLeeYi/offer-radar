@@ -6,7 +6,7 @@
 - 重跑 idempotent（全量重建）
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from rag.ingest import ingest
 from rag.vector_store import VectorStore
@@ -117,3 +117,85 @@ def test_ingest_empty_db_yields_empty_store(tmp_path):
     result = ingest(conn, store, fake_embed, today=TODAY)
     assert (result.offers, result.chunks) == (0, 0)
     assert store.count() == 0
+
+
+def make_web_offer(title: str, expires_at: datetime | None) -> Offer:
+    """網搜來源的假資料：trust_tier=web_unverified，帶 TTL。"""
+    return Offer(
+        source_type="credit_card",
+        bank="網搜銀行",
+        provider=None,
+        title=title,
+        content="網搜抽出來的內容",
+        channel=None,
+        reward_rate=None,
+        valid_from=None,
+        valid_to=None,
+        source_url=f"https://example.com/web/{title}",
+        scraped_at=SCRAPED_AT,
+        trust_tier="web_unverified",
+        expires_at=expires_at,
+    )
+
+
+class TestTrustTier:
+    """F12：chunk metadata 帶 trust_tier，過期的 web_unverified 不進 ChromaDB。"""
+
+    def test_chunk_metadata_carries_trust_tier(self, tmp_path):
+        conn = init_db(tmp_path / "offers.db")
+        seed_offers(conn)
+        upsert_offer(conn, make_web_offer("網搜優惠", datetime(2099, 1, 1)))
+        conn.commit()
+        store = VectorStore(path=str(tmp_path / "chroma"))
+
+        ingest(conn, store, fake_embed, today=TODAY)
+
+        tiers = {m["title"]: m["trust_tier"] for m in store.all_metadatas()}
+        assert tiers["有效優惠"] == "verified"
+        assert tiers["網搜優惠"] == "web_unverified"
+
+    def test_expired_web_unverified_excluded(self, tmp_path):
+        conn = init_db(tmp_path / "offers.db")
+        upsert_offer(conn, make_web_offer("過期網搜", datetime(2020, 1, 1)))
+        upsert_offer(conn, make_web_offer("未過期網搜", datetime(2099, 1, 1)))
+        conn.commit()
+        store = VectorStore(path=str(tmp_path / "chroma"))
+
+        result = ingest(conn, store, fake_embed, today=TODAY)
+
+        titles = {m["title"] for m in store.all_metadatas()}
+        assert titles == {"未過期網搜"}
+        assert result.offers == 1
+
+    def test_verified_offers_never_expire(self, tmp_path):
+        """既有爬蟲資料沒有 expires_at → TTL 過濾對它們完全無作用（行為不變）。"""
+        conn = init_db(tmp_path / "offers.db")
+        seed_offers(conn)
+        store = VectorStore(path=str(tmp_path / "chroma"))
+        assert ingest(conn, store, fake_embed, today=TODAY).offers == 3
+
+
+class TestExpiryBoundary:
+    def test_list_active_offers_uses_injected_now(self, tmp_path):
+        from scraper.db import list_active_offers
+
+        conn = init_db(tmp_path / "offers.db")
+        expires = datetime(2026, 7, 10, 12, 0, 0)
+        upsert_offer(conn, make_web_offer("剛好到期", expires))
+        conn.commit()
+
+        just_before = list_active_offers(conn, today=TODAY, now=expires - timedelta(seconds=1))
+        assert len(just_before) == 1
+        at_expiry = list_active_offers(conn, today=TODAY, now=expires)
+        assert at_expiry == []
+
+    def test_valid_to_and_expires_at_filter_independently(self, tmp_path):
+        from scraper.db import list_active_offers
+
+        conn = init_db(tmp_path / "offers.db")
+        upsert_offer(conn, make_offer("過期日期", "內容", date(2026, 1, 1)))  # valid_to 已過
+        upsert_offer(conn, make_web_offer("未過期網搜", datetime(2099, 1, 1)))
+        conn.commit()
+
+        rows = list_active_offers(conn, today=TODAY, now=datetime(2026, 7, 10, 12, 0, 0))
+        assert [o.title for _, o in rows] == ["未過期網搜"]

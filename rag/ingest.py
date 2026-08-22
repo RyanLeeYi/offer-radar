@@ -2,7 +2,8 @@
 
 SQLite 未過期優惠 → 切塊 → embedding → ChromaDB 全量重建。
 chunk 文字帶「銀行 + 標題」前綴強化檢索訊號；metadata 含
-offer_id / valid_to / source_url（檢索後可溯源、可過濾過期）。
+offer_id / valid_to / source_url / trust_tier（檢索後可溯源、可過濾過期、可標未驗證）。
+已過期的 web_unverified 資料在 list_active_offers 就被擋掉，不會進 ChromaDB。
 R3 驗收口徑：ChromaDB distinct offer_id 數 = SQLite 未過期優惠筆數。
 """
 
@@ -48,6 +49,8 @@ def ingest(conn: Connection, store: VectorStore, embed: EmbedFn, today: date) ->
                     # Chroma metadata 不收 None：無期限以空字串表示
                     "valid_to": offer.valid_to.isoformat() if offer.valid_to else "",
                     "source_url": offer.source_url,
+                    # 檢索端據此標示未驗證來源（F12 分層信任的落地點）
+                    "trust_tier": offer.trust_tier,
                 }
             )
 
