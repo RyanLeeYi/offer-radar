@@ -1,37 +1,6 @@
 {
   "features": [
     {
-      "id": "F11",
-      "name": "miss_log 記錄與 24h 防重複（web 網搜補資料 1/5）",
-      "acceptance": "查無（拒答句）時將 query 原文 + 時間戳寫入 miss_log 表（含 entity 欄位，寫入時為 null、由 F13 正規化回填，F11 本身不依賴 LLM）；24h 去重以 entity 為 key、entity 為 null 時退回 raw query；pytest 覆蓋寫入/兩種去重/跨 24h 邊界。設計見 docs/superpowers/specs/2026-07-12-web-search-fallback-design.md",
-      "prerequisites": [],
-      "status": "failing",
-      "evidence": "",
-      "signed_off": true,
-      "touches": [
-        "rag/miss_log.py",
-        "rag/pipeline.py",
-        "tests/test_miss_log.py",
-        "tests/test_rag_pipeline.py"
-      ]
-    },
-    {
-      "id": "F12",
-      "name": "offers 分層信任：trust_tier + expires_at + 過期清理（web 網搜補資料 2/5）",
-      "acceptance": "offers 表新增 trust_tier（verified|web_unverified）與 expires_at；既有五個爬蟲來源寫入自動標 verified 且不設 TTL、行為不變（158+ tests 仍全過）；ChromaDB chunk metadata 帶 trust_tier；rag.ingest 排除已過期 web_unverified 資料",
-      "prerequisites": [],
-      "status": "failing",
-      "evidence": "",
-      "signed_off": true,
-      "touches": [
-        "scraper/models.py",
-        "scraper/db.py",
-        "rag/ingest.py",
-        "tests/test_models.py",
-        "tests/test_ingest.py"
-      ]
-    },
-    {
       "id": "F13",
       "name": "查詢正規化 + Tavily 搜尋 + LLM 結構化抽取 pipeline（web 網搜補資料 3/5）",
       "acceptance": "查詢正規化：LLM 從 miss query 抽 {品牌/通路, 商品, 消費類別} 並回填 miss_log.entity；搜尋詞用品牌層組合（不拿 raw query 直搜），無品牌退類別詞、連類別都抽不出則不搜；Tavily（include_domains 優先官網）結果經獨立抽取 prompt 產出結構化 Offer，Pydantic schema 驗證通過才寫入（trust_tier=web_unverified, expires_at=+7d）；抽不出必要欄位整筆丟棄不入庫；TAVILY_API_KEY 只從 .env 讀、缺 key fail fast；網搜內容視為不可信輸入不影響 prompt 行為",
