@@ -1,56 +1,90 @@
 # Session Handoff
 
-> 最後更新：2026-07-15
+> 最後更新：2026-08-23（無人看管 session，由 agent-brief-me 派出）
 
-## 這個 session 做了（F16 — 慢查詢體驗）
+## 這個 session 做了（F11–F15 web 網搜補資料 epic 全數實作完成）
 
-- **F16 passing**：bot 處理中提示 + /query 逾時 30s→90s（TDD，162 tests pass、ruff clean）
-  - `bot/handlers.py`：`on_text` 先回 `PROCESSING_REPLY`「🔍 查詢中，請稍候…」placeholder，拿到結果後 `edit_text` 就地更新（200/503/504/422/連線失敗五路徑全改 edit，不另發新訊息洗版）
-  - `api/main.py`：`QUERY_TIMEOUT_SECONDS` 30→90（涵蓋 8B 冷載入 ~24s 最壞情況；transport 120s 仍為外層上界）；`bot/api_client.py` `_QUERY_TIMEOUT` 35→95（client 要 >90）
-  - `docs/archive/PRD…md` line 110 逾時契約同步改 90s（SSOT）
-  - **背景**：Ryan 決定不加 `keep_alive`（正常使用間隔常 >2h，預設 5min 夠用），暖機不治本，改用「90s 逾時 + 處理中提示」吸收冷載入的體感
-  - ⚠️ Telegram 端真機 edit 未跑（fake 注入驗行為）；bot 要**重啟**才生效
+開場時 F11/F12 的實作已在 HEAD（前一場留下）但狀態仍 failing；F13–F15 連規格都沒簽核。
+inbox 的 11 筆答案全是 "Sign off as-is" ＋ "Run, start with F11"，據此簽核 F13–F15 後動工。
 
-## 這個 session 做了（F7 + F8）
+### F11 / F12 — passing 並歸檔
+`acceptance-verifier` fresh context 逐條 7/7 pass，無 fail 項。整條原文已搬進
+`docs/archive/features.jsonl`，主檔只留 failing。
 
-### F8 — OpenAI 切換支援（passing）
-- `rag/generator.py`：新增 `OpenAIGenerator`（transport `complete` 可注入、預設延後建 OpenAI client）＋ `build_generator(settings)` factory（依 `llm_provider` 選 ollama/openai；openai 缺 `OPENAI_API_KEY` 或未知 provider 即 `raise ValueError`，fail fast）
-- prompt 配方抽成 `build_user_content(question, hits)` 單一事實來源，兩 generator 共用（測試把關一致性）
-- `rag/pipeline.py build_default` 改走 `build_generator` → fail fast 在 API/CLI 啟動期發生，不是查詢時
-- 158 tests、ruff clean；缺 key 實測即 raise；OpenAI SDK 用法 Context7 已確認
-- ⚠️ **待 Ryan 手動驗一件**：`LLM_PROVIDER=openai` + 有效金鑰下實跑一次 `/query`（R6 的「openai 下 R4 通過」）。我沒擅用 memory 裡那把外洩待輪替的 OpenAI key。驗法：`.env` 設 `LLM_PROVIDER=openai` + `OPENAI_API_KEY=<有效 key>`，重啟 API，問 PRD 三範例確認回答正常
-- ⚠️ code review：F8 diff 是純抽取 + 小新增（一個 class + factory），我用**聚焦自審 + Context7 驗 SDK + fail-fast 實測**取代完整多代理 /code-review（F7 已跑完整 8 角度）。若要補正式 review 可對 `rag/generator.py` 跑一次
+### F13 — 查詢正規化 + Tavily 搜尋 + LLM 抽取（executor worktree 產出，主 session 整合）
+> 狀態：passing 並歸檔（重驗 6/6）
+- `rag/llm.py`：`build_completion(settings)` → `LlmFn = Callable[[str], str]`，通用「prompt → 文字」
+  介面（`rag/generator.py` 的 `generate(question, hits)` 綁死 RAG 回答，抽取端用不了）
+- `rag/web_search.py`：`TavilySearch`（`post` 可注入）、`build_search` 缺 key fail fast
+- `rag/extractor.py`：`normalize_query` / `build_search_terms` / `extract_offers`，
+  抽取 prompt 獨立、輸出過 Pydantic、語意驗證重用 `Offer.__post_init__`
+- **主 session 整合時改了兩處 worker 的判斷**：
+  1. Tavily 認證改成 `Authorization: Bearer`——worker 把 key 放進 body 的 `api_key`，
+     那是舊式整合寫法，現行 API reference（Context7 查證）用 header。沒有 key 測不出來，
+     會等到 Ryan 第一次實跑才 401
+  2. `Entity` 加 `official_domain`（LLM 推測），否則 acceptance 的「include_domains 優先官網」
+     沒有任何路徑餵得到值
 
-## 這個 session 做了（F7）
+### F14 — unverified 警語
+> 狀態：passing 並歸檔（3/3）
+- `UNVERIFIED_WARNING` 在 `rag/pipeline.py`，**逐條列出未驗證的標題**，verified 條目不連坐
+- 警語判定看整個 context（未截斷），不是看截斷後的 5 筆 sources——LLM 可能引用排第 6 名以後的資料
+- `build_user_content` 把未驗證資料標成 `【資料 N｜未經驗證】`；全 verified 時 prompt 逐字元不變
 
-- **F7 passing**：電子支付爬蟲 ×2（`python -m scraper.e_payment`）
-  - **名單改為街口＋icash Pay**（原 LINE Pay＋街口，DECISIONS D8 / PRD R2 註記）：LINE Pay 官網無實質優惠內容（都在 app 內 SPA），偵察後經 Ryan 決定換 icash Pay
-  - `scraper/sources/jkopay.py`：mkt.jkopay.com 活動總覽 → campaign 頁；內文從 Next.js RSC flight payload（`self.__next_f.push`）解碼抽中文文字段；標題/摘要取 og:title/og:description；效期只信標題與活動時間類標記（`full_scan=False`——街口幣到期樣板日期會毒化效期）
-  - `scraper/sources/icashpay.py`：advertMessage 列表＋分頁＋明細（靜態頁）；首頁直接當第 1 頁用（不重抓 page/1，分頁改版也不漏第 1 頁）
-  - `scraper/runner.py`：共用 runner（從 credit_card.py 抽出）；入庫層失敗也隔離＋rollback（不只 fetch 層）
-  - `scraper/dates.py`：`parse_period_near`（markers 順序、窗口尾端不切數字、`full_scan` 開關）；預設 markers 加「活動時間」
-  - 實跑 52 筆（街口 19/icash Pay 33）、5 輪 idempotent、exit 0；ingest 後 Chroma 275 offers/1799 chunks；檢索實測電支優惠進 top-3
-- `/start` 涵蓋範圍文案已更新（信用卡三家＋街口、icash Pay）——**bot 要重啟才生效**
+### F15 — 背景補查 job
+> 狀態：passing 並歸檔（重驗 6/6）
+- `rag/backfill.py`：`python -m rag.backfill`，miss_log → 正規化 → 網搜 → 抽取 → 入庫 →（有新資料才）ingest
+- 拒答句改成「目前資料庫沒有相關優惠資訊。已記下這個問題、稍後補查。」
+- 端到端測試走真 SQLite + 真 ChromaDB（`tests/test_backfill.py::test_end_to_end_...`）
+
+### `/code-review` 抓到 7 項，FIX 5 / DEFER 2
+FIX（都已修，各留一條會紅的回歸測試）：
+1. **抽不出 entity 的 miss 餓死後續 miss**（P1）：`pending` 取前 `limit` 筆 entity IS NULL，
+   抽不出的永遠留 NULL → 累積 20 筆之後 job 每輪白燒 20 次 LLM 呼叫、什麼都做不了。
+   改標 `UNRESOLVED = "?"`
+2. **web_unverified 覆蓋 verified**（P1）：upsert key 是 `(source_url, title)`，網搜撞上爬蟲
+   已收的同一筆會把它降級並掛 7 天 TTL，到期後連原本的爬蟲資料都被 `list_active_offers` 濾掉。
+   守門加在 `scraper/db.py` 的共用寫入路徑（`ON CONFLICT ... WHERE NOT (...)`），不是只擋 backfill
+3. `official_domain` 沒寫進 normalize prompt（P2）→ include_domains 是死路
+4. `_SKIPPABLE_ERRORS` 接不到 `openai.APIError`（P2）→ 一次 429 炸掉整批
+5. `searched` 計 entity 數但額度算的是請求數（P3，最壞 limit×4）→ 加 `requests` 欄位
+
+DEFER（P3，記在這裡不另開 feature）：
+- 24h 去重用 miss 的 `created_at` 近似「搜過的時間」，被 limit 擋在窗外的 miss 可能提早重搜
+- `rag/llm.py` 與 `rag/generator.py` 的 provider 選擇／think 剝除／timeout 重複一份
+  （當初為了讓 worker 與主 session 檔案不重疊而分開，之後可合流）
+
+## 驗收與流程
+
+**F11-F15 五條全部 passing 並歸檔，`feature_list.json` 的 features 已空。** 下一條 feature 要自己開。
+
+驗收踩到一次流程坑：第一輪 F13/F14/F15 驗收跑到一半時，主 session commit 了 `/code-review` 的
+修正，害它的基準（`75de002`）與 HEAD（`56f7da6`）分岔——那一輪等於白跑，還得再派一次針對性重驗。
+**驗收 worker 是對著工作樹現況驗的，不是對著某個 commit：驗收期間主工作區要凍結。**
+
+值得記的是兩個獨立檢查（`/code-review` 與 acceptance-verifier）各自抓到同一條 P1，
+而且都是靠「拿一個只回 prompt 實際要求欄位的合規假 LLM 實跑」看穿的——
+測試綠燈是因為 fixture 手動塞了 prompt 從沒要求的欄位。**fixture 餵什麼、prompt 要什麼，是兩件事。**
 
 ## 做到一半 / 已知未修
 
-- 無半成品。已知限制／待辦：
-  1. **循環活動效期會過時**：街口「5 號會員日」等每月循環活動抽到的是本期領券窗口（如 7/1–7/5），過期後要等下次爬蟲重跑才更新——排程爬蟲（cron）可解，F9 後考慮
-  2. **icash Pay 分頁只從第 1 頁發現**：若日後分頁截斷（1 2 3 … 12），後面頁會漏抓且無警訊；街口 RSC payload 解析對改版較脆（D8 代價）
-  3. **jkopay RSC chunk 若帶非 JSON 跳脫（\x）會整塊丟棄**：現況實測 19/19 campaign 都解得出來，未修
-  4. **DB 路徑雙軌**：runner 用 `OFFER_RADAR_DB`、config/settings 用 `DATABASE_PATH`——F8/F9 統一進 config 時一併收（連同 bot 95s/api 90s 逾時常數兩處，F16 後仍是兩處硬編碼，僅值改）
-  5. **單一 PoliteClient 跨網域共用 1s 間隔**：來源多了以後可改 per-domain client＋平行抓，MVP 不動
-  6. 測試側小債：`read_fixture` 在兩個測試檔重複（可抽 conftest.py）；skip-on-http-error 測試五份同構（可改直測 `_shared`）
-  7. 前 session 遺留照舊：Ollama 閒置卸載（504 冷載入）、**bot token 建議 BotFather revoke**、`.env.example` 缺條目（F9）、504 zombie thread、Chroma 併發無保證
-- 營運注意：**ingest（bge-m3 embedding 1799 chunks）約 30–40 分鐘**，背景跑完再驗 count；中途查詢 Chroma 會看到空 collection（rebuild 進行中的中間態，不是壞掉）
-- 啟動順序：`ollama serve` → `uv run uvicorn api.main:app` → `uv run python -m bot.main`
+1. **沒有任何一次真實的 Tavily 呼叫發生過**——`.env` 沒有 `TAVILY_API_KEY`，所有網搜與 LLM
+   都是注入假件。串接正確性證明得了，「Tavily 回不回得出台灣優惠網頁、抽取 prompt 對真實
+   網頁管不管用」證明不了。**已投 inbox question 請 Ryan 裁決**（申請 key：app.tavily.com，
+   免費 1000 次/月）。填進 `.env` 後跑 `uv run python -m rag.backfill` 就看得到真實結果
+2. 前 session 遺留照舊：`LLM_PROVIDER=openai` 真 API 手動驗一次、F16 Telegram 端真機驗 edit、
+   DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 95s/api 90s 逾時常數兩處
+3. `rag/backfill.py` 沒有排程——目前只能手動跑。要固定補查得自己掛 cron／排程任務
+4. 營運注意不變：ingest（bge-m3，1799 chunks）約 30–40 分鐘；`backfill` 只在有新資料時才觸發 ingest
 
 ## 下一步（具體到可直接動手）
 
-> F9 已於 2026/07/11 完成（MVP 9/9 passing）；F10/F16 也已收。現在是**試用觀察期**。
+1. **等 inbox 答覆**：Tavily key 要不要申請（決定 F13/F15 能不能標 passing）
+2. key 到位後：`uv run python -m rag.backfill` 實跑一次，看 `requests=` 與 `stored=`，
+   確認抽取 prompt 對真實網頁管用；不管用就調 `_EXTRACT_INSTRUCTIONS`
+3. bot／API 要重啟才吃得到新的拒答句與警語
+4. 順手可收：上面 DEFER 的兩項技術債
 
-1. **等 7/22**：成功指標「實際使用 ≥ 2 週」達標（動工 7/08）→ 跑收官：vault PLAN checklist + `sop/after-action.md`（成功指標對答案、harness 消融檢討、成就故事、歸檔 `projects/archive/`）
-2. **~7/25 觀察期結束**：動工 F11–F15 網搜補資料 epic（設計 spec：`docs/superpowers/specs/2026-07-12-web-search-fallback-design.md`）。注意 **F11 miss_log 無依賴、spec 註明可先做**——沒有它，觀察期收不到查無數據，7/25 決定「下一個爬蟲寫誰」會沒有依據
-3. F8 遺留：openai provider 真 API 手動驗一次（`.env` 設 `LLM_PROVIDER=openai` + 有效 key，重啟 API 問 PRD 三範例）
-4. F16 遺留：Telegram 端真機驗一次 edit 行為（bot 重啟後隨便問一句，確認 placeholder → 就地更新）
-5. 順手收技術債：DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 95s/api 90s 逾時常數兩處，統一進 config
+## 啟動順序（不變）
+
+`ollama serve` → `uv run uvicorn api.main:app` → `uv run python -m bot.main`
