@@ -13,6 +13,8 @@ from config.settings import Settings
 from rag.vector_store import Hit
 
 NO_RESULT_ANSWER = "目前資料庫沒有相關優惠資訊。"
+# F14：分層信任的落地點——引用網搜補來的資料時，警語與被標示的條目一起附在回答末尾
+UNVERIFIED_WARNING = "⚠️ 來自網路搜尋、未經驗證，使用前請確認官網"
 # e5-small 的 distance 分布擠（相關 0.10 vs 無關 0.11~0.16），門檻只當 sanity check；
 # 無關問題的真正防線是 LLM 拒答 + 清 sources（見 answer()）。實測記錄見 DECISIONS D6
 DEFAULT_MAX_DISTANCE = 0.4
@@ -26,6 +28,8 @@ class Source:
     title: str
     source_url: str
     valid_to: str | None
+    # 舊 chunk（F12 之前入庫）metadata 沒這個欄位，預設 verified 才不會誤標警語
+    trust_tier: str = "verified"
 
 
 @dataclass(frozen=True)
@@ -70,7 +74,10 @@ class Pipeline:
         if "目前資料庫沒有相關優惠" in reply:
             # 第二道防線：檢索過門檻但 LLM 判定資料答不了 → 不要附誤導的來源（R5）
             return self._no_result(question)
-        return Answer(answer=reply, sources=_sources(hits)[:MAX_SOURCES])
+        cited = _sources(hits)
+        # 警語看的是整個 context（未截斷）：LLM 可能引用第 6 名以後、列不進 sources 的
+        # 未驗證資料，只看截斷後的清單會漏標
+        return Answer(answer=_append_warning(reply, cited), sources=cited[:MAX_SOURCES])
 
     def _no_result(self, question: str) -> Answer:
         """兩條拒答出口共用：回固定句，順手把 query 記進 miss_log（F11）。"""
@@ -125,6 +132,17 @@ def build_default(settings: Settings) -> RagRuntime:
     return RagRuntime(pipeline=pipeline, stats=store)
 
 
+def _append_warning(reply: str, cited: list[Source]) -> str:
+    """引用未驗證資料時附警語並逐條列出（F14）。全 verified 時原字串原封不動回傳。
+
+    只列 web_unverified 的標題——混合來源時 verified 條目不該被連坐標示。
+    """
+    unverified = [s.title for s in cited if s.trust_tier == "web_unverified"]
+    if not unverified:
+        return reply
+    return f"{reply}\n\n{UNVERIFIED_WARNING}：{'、'.join(unverified)}"
+
+
 def _dedupe_by_offer(hits: list[Hit]) -> list[Hit]:
     """每個 offer 只留 distance 最小的 chunk，保留原排序（retriever 已依 distance 升冪）。"""
     seen: set[int] = set()
@@ -169,6 +187,7 @@ def _sources(hits: list[Hit]) -> list[Source]:
                 title=hit.metadata.get("title", ""),
                 source_url=hit.metadata["source_url"],
                 valid_to=hit.metadata.get("valid_to") or None,
+                trust_tier=hit.metadata.get("trust_tier", "verified"),
             )
         )
     return sources

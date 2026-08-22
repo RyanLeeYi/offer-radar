@@ -35,10 +35,19 @@ PostFn = Callable[[str, dict], dict]
 CompleteFn = Callable[[str, list[dict]], str]
 
 
+def _tier_mark(hit: Hit) -> str:
+    """未驗證的網搜資料在 context 內標記出來，LLM 才有辦法逐條標示（F14）。
+
+    全 verified 時回空字串——prompt 與 F14 之前逐字元相同，既有行為不受影響。
+    """
+    return "｜未經驗證" if hit.metadata.get("trust_tier") == "web_unverified" else ""
+
+
 def build_user_content(question: str, hits: list[Hit]) -> str:
     """組出 user message 內文（context + 問題 + 指令）。兩個 generator 的單一事實來源。"""
     context = "\n\n".join(
-        f"【資料 {i + 1}】{hit.text}\n（效期至：{hit.metadata.get('valid_to') or '未標示'}）"
+        f"【資料 {i + 1}{_tier_mark(hit)}】{hit.text}\n"
+        f"（效期至：{hit.metadata.get('valid_to') or '未標示'}）"
         for i, hit in enumerate(hits)
     )
     return f"以下是優惠資料庫的檢索結果：\n\n{context}\n\n問題：{question}\n\n{_INSTRUCTIONS}"

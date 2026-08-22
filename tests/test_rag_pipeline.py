@@ -329,3 +329,76 @@ class TestMissRecording:
         pipeline, generated = build_pipeline([])
         result = pipeline.answer("火星旅遊有什麼優惠")
         assert (result.answer, result.sources, generated) == (NO_RESULT_ANSWER, [], [])
+
+
+class TestUnverifiedWarning:
+    """F14：引用 web_unverified 資料的回答必附警語；全 verified 時行為不變。"""
+
+    def _hit(self, offer_id: int, title: str, trust_tier: str) -> Hit:
+        from dataclasses import replace
+
+        hit = make_hit(offer_id, title, 0.10 + offer_id * 0.001)
+        return replace(hit, metadata={**hit.metadata, "trust_tier": trust_tier})
+
+    def test_unverified_source_appends_warning(self):
+        from rag.pipeline import UNVERIFIED_WARNING
+
+        pipeline, _ = build_pipeline([self._hit(1, "網搜好市多優惠", "web_unverified")])
+        result = pipeline.answer("去好市多刷哪張卡")
+        assert result.answer.startswith("推薦國泰卡")
+        assert UNVERIFIED_WARNING in result.answer
+        assert "網搜好市多優惠" in result.answer.split(UNVERIFIED_WARNING)[1]
+
+    def test_all_verified_answer_byte_identical(self):
+        """全部來自 verified → 回答與現狀一模一樣（不多一個字元）。"""
+        pipeline, _ = build_pipeline([self._hit(1, "台新優惠", "verified")])
+        assert pipeline.answer("問題").answer == "推薦國泰卡"
+
+    def test_missing_trust_tier_treated_as_verified(self):
+        """舊 chunk（F12 之前入庫）metadata 沒有 trust_tier → 不得誤標警語。"""
+        pipeline, _ = build_pipeline([make_hit(1, "舊資料優惠", 0.10)])
+        assert pipeline.answer("問題").answer == "推薦國泰卡"
+
+    def test_mixed_sources_marks_only_unverified(self):
+        from rag.pipeline import UNVERIFIED_WARNING
+
+        pipeline, _ = build_pipeline(
+            [
+                self._hit(1, "台新官網優惠", "verified"),
+                self._hit(2, "網搜全聯優惠", "web_unverified"),
+            ]
+        )
+        result = pipeline.answer("問題")
+        listed = result.answer.split(UNVERIFIED_WARNING)[1]
+        assert "網搜全聯優惠" in listed
+        assert "台新官網優惠" not in listed  # verified 條目不得被連坐標示
+
+    def test_sources_carry_trust_tier(self):
+        pipeline, _ = build_pipeline(
+            [
+                self._hit(1, "台新官網優惠", "verified"),
+                self._hit(2, "網搜全聯優惠", "web_unverified"),
+            ]
+        )
+        tiers = {s.title: s.trust_tier for s in pipeline.answer("問題").sources}
+        assert tiers == {"台新官網優惠": "verified", "網搜全聯優惠": "web_unverified"}
+
+    def test_no_result_answer_has_no_warning(self):
+        from rag.pipeline import UNVERIFIED_WARNING
+
+        pipeline, _ = build_pipeline([])
+        assert UNVERIFIED_WARNING not in pipeline.answer("火星旅遊有什麼優惠").answer
+
+    def test_prompt_marks_unverified_blocks(self):
+        """抽取端已丟棄不合格資料，但 LLM 仍要知道哪幾塊未經驗證才能逐條標示。"""
+        from rag.generator import build_user_content
+
+        content = build_user_content(
+            "問題",
+            [
+                self._hit(1, "台新官網優惠", "verified"),
+                self._hit(2, "網搜全聯優惠", "web_unverified"),
+            ],
+        )
+        assert "【資料 1】" in content
+        assert "【資料 2｜未經驗證】" in content
