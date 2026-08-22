@@ -40,7 +40,18 @@
         "F12"
       ],
       "status": "failing",
-      "evidence": ""
+      "evidence": "",
+      "signed_off": true,
+      "touches": [
+        "rag/web_search.py",
+        "rag/extractor.py",
+        "rag/miss_log.py",
+        "config/settings.py",
+        ".env.example",
+        "tests/test_web_search.py",
+        "tests/test_extractor.py",
+        "tests/test_miss_log.py"
+      ]
     },
     {
       "id": "F14",
@@ -50,7 +61,13 @@
         "F12"
       ],
       "status": "failing",
-      "evidence": ""
+      "evidence": "",
+      "signed_off": true,
+      "touches": [
+        "rag/pipeline.py",
+        "rag/generator.py",
+        "tests/test_rag_pipeline.py"
+      ]
     },
     {
       "id": "F15",
@@ -63,7 +80,14 @@
         "F14"
       ],
       "status": "failing",
-      "evidence": ""
+      "evidence": "",
+      "signed_off": true,
+      "touches": [
+        "rag/backfill.py",
+        "rag/pipeline.py",
+        "tests/test_backfill.py",
+        "tests/test_rag_pipeline.py"
+      ]
     }
   ]
 }
