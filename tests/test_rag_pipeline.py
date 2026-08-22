@@ -402,3 +402,20 @@ class TestUnverifiedWarning:
         )
         assert "【資料 1】" in content
         assert "【資料 2｜未經驗證】" in content
+
+
+class TestBackfillNotice:
+    """F15：查無回覆要告知已記下、稍後補查（不推播，下次再問才搜得到）。"""
+
+    def test_no_result_answer_promises_backfill(self):
+        assert "已記下這個問題" in NO_RESULT_ANSWER
+        assert "稍後補查" in NO_RESULT_ANSWER
+
+    def test_both_refusal_paths_use_same_notice(self):
+        """檢索無結果與 LLM 拒答兩條出口共用同一句，不會只有一邊講補查。"""
+        no_hits, _ = build_pipeline([])
+        llm_refused, _ = build_pipeline(
+            [make_hit(1, "擦邊優惠", 0.30)], reply="目前資料庫沒有相關優惠資訊。"
+        )
+        assert no_hits.answer("火星旅遊").answer == NO_RESULT_ANSWER
+        assert llm_refused.answer("火星旅遊").answer == NO_RESULT_ANSWER

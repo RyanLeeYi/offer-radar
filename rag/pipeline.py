@@ -12,7 +12,10 @@ from urllib.parse import urlparse
 from config.settings import Settings
 from rag.vector_store import Hit
 
-NO_RESULT_ANSWER = "目前資料庫沒有相關優惠資訊。"
+# F15：查無時順帶告知會補查（非同步、不推播——補完要等下次再問才搜得到）。
+# 補查承諾寫進常數而非只在有 recorder 時附加：正式組裝（build_default）一定帶 recorder，
+# 沒帶的只有測試用假件。
+NO_RESULT_ANSWER = "目前資料庫沒有相關優惠資訊。已記下這個問題、稍後補查。"
 # F14：分層信任的落地點——引用網搜補來的資料時，警語與被標示的條目一起附在回答末尾
 UNVERIFIED_WARNING = "⚠️ 來自網路搜尋、未經驗證，使用前請確認官網"
 # e5-small 的 distance 分布擠（相關 0.10 vs 無關 0.11~0.16），門檻只當 sanity check；
