@@ -7,7 +7,7 @@
 - **F16 passing**：bot 處理中提示 + /query 逾時 30s→90s（TDD，162 tests pass、ruff clean）
   - `bot/handlers.py`：`on_text` 先回 `PROCESSING_REPLY`「🔍 查詢中，請稍候…」placeholder，拿到結果後 `edit_text` 就地更新（200/503/504/422/連線失敗五路徑全改 edit，不另發新訊息洗版）
   - `api/main.py`：`QUERY_TIMEOUT_SECONDS` 30→90（涵蓋 8B 冷載入 ~24s 最壞情況；transport 120s 仍為外層上界）；`bot/api_client.py` `_QUERY_TIMEOUT` 35→95（client 要 >90）
-  - `docs/prd/PRD…md` line 110 逾時契約同步改 90s（SSOT）
+  - `docs/archive/PRD…md` line 110 逾時契約同步改 90s（SSOT）
   - **背景**：Ryan 決定不加 `keep_alive`（正常使用間隔常 >2h，預設 5min 夠用），暖機不治本，改用「90s 逾時 + 處理中提示」吸收冷載入的體感
   - ⚠️ Telegram 端真機 edit 未跑（fake 注入驗行為）；bot 要**重啟**才生效
 
@@ -47,8 +47,10 @@
 
 ## 下一步（具體到可直接動手）
 
-1. **F9 README + 乾淨環境驗證**（最後一個 feature，收官）：驗收——乾淨 clone 照 README + `./init.sh` 可跑起；`.env.example` 齊全（補 `LLM_PROVIDER`、`OPENAI_API_KEY`、`OPENAI_MODEL`、`EMBEDDING_MODEL`、`TELEGRAM_BOT_TOKEN` 條目）；pytest 覆蓋率 ≥ 80%（現 90%）；ruff clean；PRD 三範例 Telegram 端手動驗
-2. F9 README 是對外文稿 → 先讀 vault `identity/voice-and-tone.md`（若存在）
-3. 收官走 vault PLAN 的 checklist + `sop/after-action.md`（成功指標對答案、harness 消融檢討、成就故事、歸檔）
-4. F8 遺留：openai provider 真 API 手動驗一次（見上）
+> F9 已於 2026/07/11 完成（MVP 9/9 passing）；F10/F16 也已收。現在是**試用觀察期**。
+
+1. **等 7/22**：成功指標「實際使用 ≥ 2 週」達標（動工 7/08）→ 跑收官：vault PLAN checklist + `sop/after-action.md`（成功指標對答案、harness 消融檢討、成就故事、歸檔 `projects/archive/`）
+2. **~7/25 觀察期結束**：動工 F11–F15 網搜補資料 epic（設計 spec：`docs/superpowers/specs/2026-07-12-web-search-fallback-design.md`）。注意 **F11 miss_log 無依賴、spec 註明可先做**——沒有它，觀察期收不到查無數據，7/25 決定「下一個爬蟲寫誰」會沒有依據
+3. F8 遺留：openai provider 真 API 手動驗一次（`.env` 設 `LLM_PROVIDER=openai` + 有效 key，重啟 API 問 PRD 三範例）
+4. F16 遺留：Telegram 端真機驗一次 edit 行為（bot 重啟後隨便問一句，確認 placeholder → 就地更新）
 5. 順手收技術債：DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 95s/api 90s 逾時常數兩處，統一進 config

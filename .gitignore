@@ -13,3 +13,4 @@ htmlcov/
 # 本地資料（SQLite + ChromaDB）
 data/
 logs/
+.harness/

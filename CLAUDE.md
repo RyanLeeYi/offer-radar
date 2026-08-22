@@ -1,7 +1,7 @@
 # offer-radar — 消費優惠比較 RAG 系統
 
 台灣信用卡/電子支付優惠爬取 + ChromaDB 向量檢索 + Telegram Bot 自然語言查詢。
-規格：`docs/prd/PRD - 消費優惠比較RAG.md`（驗收標準 R1–R7 以此為準）。
+規格：`docs/archive/PRD - 消費優惠比較RAG.md`（驗收標準 R1–R7 以此為準）。
 
 ## 啟動與驗證
 
@@ -22,7 +22,9 @@
 
 ## 工作規則
 
-1. 一次只做一個 feature（看 `feature_list.json`，挑第一個 failing）
+1. 一次只推進一個 envelope（沒有 envelope 就是一條 feature，看 `feature_list.json` 挑第一個 failing）。
+   同 envelope 內的 slice 可同批實作，序列或平行皆可；平行需 `touches` 無交集且各自 worktree。
+   **驗收一律逐條、依 `prerequisites` 順序、各自 evidence**——上游改動會讓已通過的下游驗收失效
 2. TDD：先寫測試（RED）→ 實作（GREEN）→ 重構；覆蓋率 ≥ 80%
 3. feature 狀態只能 failing → passing，且必須附驗證證據（測試輸出）；沒有 evidence 不准改 passing
 4. 不做 feature_list 之外的事；發現新事項 → 先加進 list 標 failing，不直接做
