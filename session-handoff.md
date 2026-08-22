@@ -79,7 +79,8 @@ DEFER（P3，記在這裡不另開 feature）：
 
 ## 下一步（具體到可直接動手）
 
-1. **等 inbox 答覆**：Tavily key 要不要申請（決定 F13/F15 能不能標 passing）
+1. **等 inbox 答覆**：Tavily key 要不要申請。**F13/F15 已 passing**（串接正確性驗得過），
+   key 只影響「真實搜尋品質」這件事——兩者刻意分開，不讓 key 卡住規格收官
 2. key 到位後：`uv run python -m rag.backfill` 實跑一次，看 `requests=` 與 `stored=`，
    確認抽取 prompt 對真實網頁管用；不管用就調 `_EXTRACT_INSTRUCTIONS`
 3. bot／API 要重啟才吃得到新的拒答句與警語
