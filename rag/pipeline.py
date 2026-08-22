@@ -4,6 +4,7 @@ R5 防幻覺從源頭做：檢索無結果或相關度不足 → 直接回固定
 來源以 offer_id 去重（一優惠多 chunk 只列一次），保留檢索排序。
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
 from urllib.parse import urlparse
@@ -47,10 +48,12 @@ class Pipeline:
         retriever: SupportsRetrieve,
         generator: SupportsGenerate,
         max_distance: float = DEFAULT_MAX_DISTANCE,
+        record_miss: Callable[[str], None] | None = None,
     ) -> None:
         self._retriever = retriever
         self._generator = generator
         self._max_distance = max_distance
+        self._record_miss = record_miss
 
     def answer(self, question: str) -> Answer:
         relevant = [
@@ -62,12 +65,18 @@ class Pipeline:
         # 單一銀行（如台新）壟斷 context 前段，讓答案與 sources 涵蓋多家（F10）
         hits = _diversify_by_source(_dedupe_by_offer(relevant))[:MAX_CONTEXT_CHUNKS]
         if not hits:
-            return Answer(answer=NO_RESULT_ANSWER, sources=[])
+            return self._no_result(question)
         reply = self._generator.generate(question, hits)
         if "目前資料庫沒有相關優惠" in reply:
             # 第二道防線：檢索過門檻但 LLM 判定資料答不了 → 不要附誤導的來源（R5）
-            return Answer(answer=NO_RESULT_ANSWER, sources=[])
+            return self._no_result(question)
         return Answer(answer=reply, sources=_sources(hits)[:MAX_SOURCES])
+
+    def _no_result(self, question: str) -> Answer:
+        """兩條拒答出口共用：回固定句，順手把 query 記進 miss_log（F11）。"""
+        if self._record_miss is not None:
+            self._record_miss(question)
+        return Answer(answer=NO_RESULT_ANSWER, sources=[])
 
 
 class SupportsAnswer(Protocol):
@@ -101,13 +110,19 @@ def build_default(settings: Settings) -> RagRuntime:
     """依設定組裝正式環境的 pipeline（CLI 與 API 共用的組裝入口）。"""
     from rag.embedder import Embedder  # 延後 import：載 torch 很慢
     from rag.generator import build_generator
+    from rag.miss_log import build_miss_recorder
     from rag.retriever import Retriever
     from rag.vector_store import VectorStore
 
     store = VectorStore(path=settings.chroma_path)
     retriever = Retriever(store=store, embed_query=Embedder(settings.embedding_model).embed_query)
     generator = build_generator(settings)  # R6：provider 切換 + 缺金鑰 fail fast
-    return RagRuntime(pipeline=Pipeline(retriever=retriever, generator=generator), stats=store)
+    pipeline = Pipeline(
+        retriever=retriever,
+        generator=generator,
+        record_miss=build_miss_recorder(settings.database_path),  # F11：查無留紀錄
+    )
+    return RagRuntime(pipeline=pipeline, stats=store)
 
 
 def _dedupe_by_offer(hits: list[Hit]) -> list[Hit]:

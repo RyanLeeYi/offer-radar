@@ -136,17 +136,24 @@ class TestBuildGenerator:
             raise AssertionError("未知 provider 應 fail fast")
 
 
+def build_pipeline(hits: list[Hit], reply: str = "推薦國泰卡", record_miss=None):
+    """組一條全假件的 pipeline，回 (pipeline, 生成呼叫記錄)。"""
+    generated: list[tuple] = []
+
+    class FakeGenerator:
+        def generate(self, question: str, hits: list[Hit]) -> str:
+            generated.append((question, hits))
+            return reply
+
+    pipeline = Pipeline(
+        retriever=FakeRetriever(hits), generator=FakeGenerator(), record_miss=record_miss
+    )
+    return pipeline, generated
+
+
 class TestPipeline:
-    def make_pipeline(self, hits: list[Hit], reply: str = "推薦國泰卡"):
-        retriever = FakeRetriever(hits)
-        generated: list[tuple] = []
-
-        class FakeGenerator:
-            def generate(self, question: str, hits: list[Hit]) -> str:
-                generated.append((question, hits))
-                return reply
-
-        return Pipeline(retriever=retriever, generator=FakeGenerator()), generated
+    def make_pipeline(self, hits: list[Hit], reply: str = "推薦國泰卡", record_miss=None):
+        return build_pipeline(hits, reply, record_miss)
 
     def test_answer_with_deduped_sources(self):
         hits = [
@@ -188,7 +195,7 @@ class TestPipeline:
 
     def test_llm_no_info_reply_clears_sources(self):
         """檢索過門檻但 LLM 判定資料無關 → 回固定句且 sources 清空（R5 第二道防線）。"""
-        pipeline, _ = self.make_pipeline(
+        pipeline, _ = build_pipeline(
             [make_hit(1, "擦邊優惠", 0.30)], reply="目前資料庫沒有相關優惠資訊。"
         )
         result = pipeline.answer("火星旅遊有什麼優惠")
@@ -220,7 +227,7 @@ class TestPipeline:
 
     def test_sources_capped_at_five(self):
         hits = [make_hit(i, f"優惠{i}", 0.10 + i * 0.001) for i in range(10)]
-        pipeline, _ = self.make_pipeline(hits)
+        pipeline, _ = build_pipeline(hits)
         result = pipeline.answer("問題")
         assert len(result.sources) == 5
 
@@ -283,3 +290,42 @@ class TestSourceDiversity:
         result = pipeline.answer("網購優惠")
         hosts = {urlparse(s.source_url).netloc for s in result.sources}
         assert len(hosts) >= 3  # top5 不再被台新壟斷
+
+
+class TestMissRecording:
+    """F11：兩條拒答路徑都要把 query 原文交給 miss_log，有答案時不記。"""
+
+    def test_no_hits_records_miss(self):
+        recorded: list[str] = []
+        pipeline, _ = build_pipeline([], record_miss=recorded.append)
+        assert pipeline.answer("火星旅遊有什麼優惠").answer == NO_RESULT_ANSWER
+        assert recorded == ["火星旅遊有什麼優惠"]
+
+    def test_low_relevance_records_miss(self):
+        recorded: list[str] = []
+        pipeline, _ = build_pipeline([make_hit(1, "無關優惠", 0.95)], record_miss=recorded.append)
+        assert pipeline.answer("火星旅遊有什麼優惠").answer == NO_RESULT_ANSWER
+        assert recorded == ["火星旅遊有什麼優惠"]
+
+    def test_llm_refusal_records_miss(self):
+        """檢索過門檻但 LLM 拒答也是查無——只補第一條路徑會漏掉這個出口。"""
+        recorded: list[str] = []
+        pipeline, _ = build_pipeline(
+            [make_hit(1, "擦邊優惠", 0.30)],
+            reply="目前資料庫沒有相關優惠資訊。",
+            record_miss=recorded.append,
+        )
+        assert pipeline.answer("火星旅遊有什麼優惠").answer == NO_RESULT_ANSWER
+        assert recorded == ["火星旅遊有什麼優惠"]
+
+    def test_successful_answer_records_nothing(self):
+        recorded: list[str] = []
+        pipeline, _ = build_pipeline([make_hit(1, "好市多優惠", 0.10)], record_miss=recorded.append)
+        assert pipeline.answer("去好市多刷哪張卡").answer == "推薦國泰卡"
+        assert recorded == []
+
+    def test_without_recorder_behaviour_unchanged(self):
+        """沒注入 recorder（既有測試與 CLI）→ 行為與現狀完全相同。"""
+        pipeline, generated = build_pipeline([])
+        result = pipeline.answer("火星旅遊有什麼優惠")
+        assert (result.answer, result.sources, generated) == (NO_RESULT_ANSWER, [], [])
