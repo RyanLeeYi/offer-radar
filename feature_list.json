@@ -6,7 +6,14 @@
       "acceptance": "查無（拒答句）時將 query 原文 + 時間戳寫入 miss_log 表（含 entity 欄位，寫入時為 null、由 F13 正規化回填，F11 本身不依賴 LLM）；24h 去重以 entity 為 key、entity 為 null 時退回 raw query；pytest 覆蓋寫入/兩種去重/跨 24h 邊界。設計見 docs/superpowers/specs/2026-07-12-web-search-fallback-design.md",
       "prerequisites": [],
       "status": "failing",
-      "evidence": ""
+      "evidence": "",
+      "signed_off": true,
+      "touches": [
+        "rag/miss_log.py",
+        "rag/pipeline.py",
+        "tests/test_miss_log.py",
+        "tests/test_rag_pipeline.py"
+      ]
     },
     {
       "id": "F12",
@@ -14,7 +21,15 @@
       "acceptance": "offers 表新增 trust_tier（verified|web_unverified）與 expires_at；既有五個爬蟲來源寫入自動標 verified 且不設 TTL、行為不變（158+ tests 仍全過）；ChromaDB chunk metadata 帶 trust_tier；rag.ingest 排除已過期 web_unverified 資料",
       "prerequisites": [],
       "status": "failing",
-      "evidence": ""
+      "evidence": "",
+      "signed_off": true,
+      "touches": [
+        "scraper/models.py",
+        "scraper/db.py",
+        "rag/ingest.py",
+        "tests/test_models.py",
+        "tests/test_ingest.py"
+      ]
     },
     {
       "id": "F13",
