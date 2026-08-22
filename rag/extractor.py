@@ -76,17 +76,18 @@ def _clean(value: object) -> str | None:
 
 
 _NORMALIZE_INSTRUCTIONS = (
-    "你是查詢正規化助手。請從下面的查詢中抽取三個欄位：\n"
+    "你是查詢正規化助手。請從下面的查詢中抽取四個欄位：\n"
     "- brand：品牌或通路名稱（例如：全聯、國泰世華、街口支付）\n"
     "- product：具體商品或服務名稱\n"
     "- category：消費類別（例如：量販、3C、網購、超商）\n"
+    "- official_domain：該品牌官方網站的網域（例如：pxmart.com.tw），不確定就填 null\n"
     "抽不出的欄位填 null。只輸出一個 JSON 物件，不要有任何其他文字或說明。\n"
-    '輸出格式：{"brand": ..., "product": ..., "category": ...}'
+    '輸出格式：{"brand": ..., "product": ..., "category": ..., "official_domain": ...}'
 )
 
 
 def normalize_query(question: str, complete: LlmFn) -> Entity:
-    """LLM 從 query 抽 {品牌/通路, 商品, 消費類別}；解析失敗一律回全 None（視同抽不出）。"""
+    """LLM 從 query 抽 {品牌/通路, 商品, 消費類別, 官網網域}；解析失敗回全 None（視同抽不出）。"""
     prompt = f"查詢：{question}\n\n{_NORMALIZE_INSTRUCTIONS}"
     try:
         data = _parse_json_object(complete(prompt))
@@ -154,7 +155,10 @@ def extract_offers(results: list[SearchResult], complete: LlmFn, now: datetime) 
                 trust_tier="web_unverified",
                 expires_at=expires_at,
             )
-        except _SKIPPABLE_ERRORS as exc:
+        except Exception as exc:
+            # 這裡刻意接得比 _SKIPPABLE_ERRORS 寬：LLM SDK 的錯誤型別各家不同
+            # （openai.APIError 就不是 ValueError 也不是 RequestException），
+            # 而「單筆抽不出就丟棄、不拖垮整批」是這個函式唯一的失敗語意
             logger.warning("網搜抽取失敗，丟棄該筆：%s（%s）", result.url, exc)
             continue
         offers.append(offer)

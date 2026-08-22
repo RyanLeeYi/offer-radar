@@ -23,9 +23,14 @@ from scraper.models import Offer
 
 logger = logging.getLogger(__name__)
 
-# ponytail: 單次執行處理上限，避免 miss 累積時一口氣打爆 Tavily 免費額度（1000 次/月）。
-# 需要更精細的節流（依剩餘額度動態調整）再改。
+# ponytail: 單次執行處理的 miss 筆數上限。注意這**不等於** Tavily 請求數——每個 entity
+# 最多 2 組搜尋詞 × 2 次（鎖官網 + 放寬）= 4 次請求，最壞情況是 limit × 4。免費額度
+# 1000 次/月，照預設值算約 12 輪滿載。要精準控管就改成對 requests 計數設上限。
 DEFAULT_LIMIT = 20
+
+# 正規化抽不出品牌也抽不出類別時填進 entity 的標記：這種 miss 重試幾次結果都一樣，
+# 留 null 會永遠佔住 pending 名額，把後來的 miss 餓死（每輪還白燒 limit 次 LLM 呼叫）。
+UNRESOLVED = "?"
 
 # include_domains 可帶也可不帶：第二個參數有預設值，TavilySearch.search 直接相容
 SearchFn = Callable[..., list[SearchResult]]
@@ -34,7 +39,8 @@ SearchFn = Callable[..., list[SearchResult]]
 @dataclass(frozen=True)
 class BackfillResult:
     processed: int  # 這輪消化掉的 miss 筆數
-    searched: int  # 實際發出搜尋的 entity 數（額度消耗看這個）
+    searched: int  # 實際發出搜尋的 entity 數（看 24h 去重擋掉多少）
+    requests: int  # 實際打出去的 Tavily 請求數（額度消耗看這個，不是 searched）
     stored: int  # 通過 schema 驗證、寫進 offers 的筆數
 
 
@@ -52,17 +58,23 @@ def backfill(
     """
     init_miss_log(conn)
     misses = list_misses(conn)
-    recent = {m.entity for m in misses if m.entity and now - m.created_at < DEDUPE_WINDOW}
+    recent = {
+        m.entity
+        for m in misses
+        if m.entity and m.entity != UNRESOLVED and now - m.created_at < DEDUPE_WINDOW
+    }
     pending = [m for m in misses if m.entity is None][:limit]
 
     seen: set[str] = set()
-    searched = stored = 0
+    searched = requests = stored = 0
     for miss in pending:
         entity = _normalize(miss.query, complete)
         key = entity.brand or entity.category
         if key is None:
-            # 連類別都抽不出就不搜；entity 留 null，下輪還會再試一次正規化
+            # 連類別都抽不出就不搜（設計文件的防線）。標成 UNRESOLVED 而非留 null：
+            # 同一句話重試幾次結果都一樣，留著只會排擠後面的 miss
             logger.info("抽不出品牌與類別，不搜：%r", miss.query)
+            set_entity(conn, miss.id, UNRESOLVED)
             continue
         set_entity(conn, miss.id, key)
         if key in seen or key in recent:
@@ -70,12 +82,19 @@ def backfill(
             continue
         seen.add(key)
         searched += 1
-        for offer in _search_and_extract(entity, complete, search, now):
+        offers, calls = _search_and_extract(entity, complete, search, now)
+        requests += calls
+        for offer in offers:
             upsert_offer(conn, offer)
             stored += 1
         conn.commit()
-    logger.info("補查完成：processed=%d searched=%d stored=%d", len(pending), searched, stored)
-    return BackfillResult(processed=len(pending), searched=searched, stored=stored)
+    logger.info(
+        "補查完成：processed=%d searched=%d requests=%d stored=%d",
+        len(pending), searched, requests, stored,
+    )
+    return BackfillResult(
+        processed=len(pending), searched=searched, requests=requests, stored=stored
+    )
 
 
 def _normalize(question: str, complete: LlmFn) -> Entity:
@@ -89,30 +108,36 @@ def _normalize(question: str, complete: LlmFn) -> Entity:
 
 def _search_and_extract(
     entity: Entity, complete: LlmFn, search: SearchFn, now: datetime
-) -> list[Offer]:
-    """先鎖官網網域搜一次，搜不到才放寬到全網。
+) -> tuple[list[Offer], int]:
+    """先鎖官網網域搜一次，搜不到才放寬到全網。回傳 (抽到的 offers, 實際請求數)。
 
     官網網域是 LLM 推測的，猜錯只會得到空結果——沒有退路的話整個品牌就白搜了。
     """
     results: list[SearchResult] = []
+    requests = 0
     for term in build_search_terms(entity):
         try:
-            hits = _search_term(term, entity.official_domain, search)
+            hits, calls = _search_term(term, entity.official_domain, search)
         except Exception:
             logger.exception("搜尋失敗，跳過這組搜尋詞：%r", term)
+            requests += 1
             continue
+        requests += calls
         results.extend(hits)
     if not results:
-        return []
-    return extract_offers(results, complete, now)
+        return [], requests
+    return extract_offers(results, complete, now), requests
 
 
-def _search_term(term: str, domain: str | None, search: SearchFn) -> list[SearchResult]:
+def _search_term(
+    term: str, domain: str | None, search: SearchFn
+) -> tuple[list[SearchResult], int]:
     if domain:
         restricted = search(term, include_domains=[domain])
         if restricted:
-            return restricted
-    return search(term)
+            return restricted, 1
+        return search(term), 2
+    return search(term), 1
 
 
 def main() -> int:
@@ -129,13 +154,17 @@ def main() -> int:
     conn = init_db(settings.database_path)
     try:
         result = backfill(conn, complete, searcher.search, datetime.now())
+        logger.info("Tavily 請求數 %d（免費額度 1000 次/月）", result.requests)
         if result.stored:
             # 有新資料才重建向量庫——ingest 是全量重建，沒新增就是白跑幾十分鐘
             store = VectorStore(path=settings.chroma_path)
             ingest(conn, store, Embedder(settings.embedding_model).embed_passages, date.today())
     finally:
         conn.close()
-    print(f"processed={result.processed} searched={result.searched} stored={result.stored}")
+    print(
+        f"processed={result.processed} searched={result.searched} "
+        f"requests={result.requests} stored={result.stored}"
+    )
     return 0
 
 

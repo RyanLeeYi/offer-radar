@@ -52,7 +52,8 @@ ON CONFLICT (source_url, title) DO UPDATE SET
     valid_to    = excluded.valid_to,
     scraped_at  = excluded.scraped_at,
     trust_tier  = excluded.trust_tier,
-    expires_at  = excluded.expires_at;
+    expires_at  = excluded.expires_at
+WHERE NOT (offers.trust_tier = 'verified' AND excluded.trust_tier = 'web_unverified');
 """
 
 _SELECT_COLUMNS = (
@@ -86,6 +87,10 @@ def upsert_offer(conn: sqlite3.Connection, offer: Offer) -> None:
     """寫入一筆優惠；(source_url, title) 已存在時更新其餘欄位。
 
     不自行 commit——transaction 邊界由 caller 控制（批量入庫時整批一個 transaction）。
+
+    **web_unverified 不得覆蓋 verified**：upsert key 是 (source_url, title)，網搜補來的
+    資料若撞上爬蟲已收的同一筆，覆蓋會把可信資料降級並掛上 7 天 TTL，到期後連原本的
+    爬蟲資料都會被 list_active_offers 濾掉。這道 WHERE 擋在所有寫入者共用的路徑上。
     """
     conn.execute(
         _UPSERT,
