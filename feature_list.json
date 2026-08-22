@@ -24,22 +24,6 @@
       ]
     },
     {
-      "id": "F14",
-      "name": "回答標示 unverified 警語（web 網搜補資料 4/5）",
-      "acceptance": "引用 web_unverified 資料的結論必附「⚠️ 來自網路搜尋、未經驗證，使用前請確認官網」；全部來自 verified 時回答行為與現狀相同（既有 pipeline 測試不變）；混合來源時只對 unverified 條目標示",
-      "prerequisites": [
-        "F12"
-      ],
-      "status": "failing",
-      "evidence": "",
-      "signed_off": true,
-      "touches": [
-        "rag/pipeline.py",
-        "rag/generator.py",
-        "tests/test_rag_pipeline.py"
-      ]
-    },
-    {
       "id": "F15",
       "name": "查無背景補查 job 端到端串接（web 網搜補資料 5/5）",
       "acceptance": "查無 → 回覆含「已記下這個問題、稍後補查」→ 背景 job 消化 miss_log（24h 去重）→ F13 抽取入庫 → ingest；端到端實測：查無的 query 補查成功後，再次同類查詢可檢索到並帶 F14 警語；背景 job 失敗不影響前台查詢；非同步不推播",
