@@ -2,92 +2,59 @@
 
 > 最後更新：2026-08-23（無人看管 session，由 agent-brief-me 派出）
 
-## 這個 session 做了（F11–F15 web 網搜補資料 epic 全數實作完成）
+## 這個 session 做了：消化 Tavily 裁決，沒有動程式碼
 
-開場時 F11/F12 的實作已在 HEAD（前一場留下）但狀態仍 failing；F13–F15 連規格都沒簽核。
-inbox 的 11 筆答案全是 "Sign off as-is" ＋ "Run, start with F11"，據此簽核 F13–F15 後動工。
+inbox 答覆（`52fd8b1d`）：**「先不申請——補查功能暫時關著，等之後真的想用再說」**。
 
-### F11 / F12 — passing 並歸檔
-`acceptance-verifier` fresh context 逐條 7/7 pass，無 fail 項。整條原文已搬進
-`docs/archive/features.jsonl`，主檔只留 failing。
+這條決定要求的狀態，**repo 已經在上面了**，所以本輪沒有實作，只做查證與記錄。
 
-### F13 — 查詢正規化 + Tavily 搜尋 + LLM 抽取（executor worktree 產出，主 session 整合）
-> 狀態：passing 並歸檔（重驗 6/6）
-- `rag/llm.py`：`build_completion(settings)` → `LlmFn = Callable[[str], str]`，通用「prompt → 文字」
-  介面（`rag/generator.py` 的 `generate(question, hits)` 綁死 RAG 回答，抽取端用不了）
-- `rag/web_search.py`：`TavilySearch`（`post` 可注入）、`build_search` 缺 key fail fast
-- `rag/extractor.py`：`normalize_query` / `build_search_terms` / `extract_offers`，
-  抽取 prompt 獨立、輸出過 Pydantic、語意驗證重用 `Offer.__post_init__`
-- **主 session 整合時改了兩處 worker 的判斷**：
-  1. Tavily 認證改成 `Authorization: Bearer`——worker 把 key 放進 body 的 `api_key`，
-     那是舊式整合寫法，現行 API reference（Context7 查證）用 header。沒有 key 測不出來，
-     會等到 Ryan 第一次實跑才 401
-  2. `Entity` 加 `official_domain`（LLM 推測），否則 acceptance 的「include_domains 優先官網」
-     沒有任何路徑餵得到值
+### 查證過的三件事（不是推論，是跑出來的）
 
-### F14 — unverified 警語
-> 狀態：passing 並歸檔（3/3）
-- `UNVERIFIED_WARNING` 在 `rag/pipeline.py`，**逐條列出未驗證的標題**，verified 條目不連坐
-- 警語判定看整個 context（未截斷），不是看截斷後的 5 筆 sources——LLM 可能引用排第 6 名以後的資料
-- `build_user_content` 把未驗證資料標成 `【資料 N｜未經驗證】`；全 verified 時 prompt 逐字元不變
+1. **缺 key 只關掉補查，不影響任何前台功能**——`config/settings.py:16` 的
+   `tavily_api_key: str = ""` 有預設值，`build_search` 只在 `rag/backfill.py:150` 的
+   `main()` 內部 lazy import 呼叫。api／bot／pipeline 完全碰不到它，啟動與查詢照常
+2. **`uv run python -m rag.backfill` 在 3.8 秒內退出**，訊息是
+   `ValueError: TAVILY_API_KEY 未設定，請在 .env 填入後再啟動（免費額度 1000 次/月）`。
+   原本擔心它會先載完 torch 才報錯（`from rag.embedder import Embedder` 排在 `build_search` 之前），
+   實測沒有——`rag/embedder.py` 自己也是延後載入。**這個「關著」的狀態是乾淨的，不用另外加開關**
+3. **242 tests pass、ruff clean**（baseline，本輪未改任何 `.py`）
 
-### F15 — 背景補查 job
-> 狀態：passing 並歸檔（重驗 6/6）
-- `rag/backfill.py`：`python -m rag.backfill`，miss_log → 正規化 → 網搜 → 抽取 → 入庫 →（有新資料才）ingest
-- 拒答句改成「目前資料庫沒有相關優惠資訊。已記下這個問題、稍後補查。」
-- 端到端測試走真 SQLite + 真 ChromaDB（`tests/test_backfill.py::test_end_to_end_...`）
+唯一的程式碼變更是 `.env.example` 第 16 行起的註解：把「留空」寫成**刻意的預設狀態**，
+不是待辦事項。否則下一個 agent 看到空 key 又會投一次 question 問要不要申請。
 
-### `/code-review` 抓到 7 項，FIX 5 / DEFER 2
-FIX（都已修，各留一條會紅的回歸測試）：
-1. **抽不出 entity 的 miss 餓死後續 miss**（P1）：`pending` 取前 `limit` 筆 entity IS NULL，
-   抽不出的永遠留 NULL → 累積 20 筆之後 job 每輪白燒 20 次 LLM 呼叫、什麼都做不了。
-   改標 `UNRESOLVED = "?"`
-2. **web_unverified 覆蓋 verified**（P1）：upsert key 是 `(source_url, title)`，網搜撞上爬蟲
-   已收的同一筆會把它降級並掛 7 天 TTL，到期後連原本的爬蟲資料都被 `list_active_offers` 濾掉。
-   守門加在 `scraper/db.py` 的共用寫入路徑（`ON CONFLICT ... WHERE NOT (...)`），不是只擋 backfill
-3. `official_domain` 沒寫進 normalize prompt（P2）→ include_domains 是死路
-4. `_SKIPPABLE_ERRORS` 接不到 `openai.APIError`（P2）→ 一次 429 炸掉整批
-5. `searched` 計 entity 數但額度算的是請求數（P3，最壞 limit×4）→ 加 `requests` 欄位
+## 已知不一致（DEFER，附觸發條件）
 
-DEFER（P3，記在這裡不另開 feature）：
-- 24h 去重用 miss 的 `created_at` 近似「搜過的時間」，被 limit 擋在窗外的 miss 可能提早重搜
-- `rag/llm.py` 與 `rag/generator.py` 的 provider 選擇／think 剝除／timeout 重複一份
-  （當初為了讓 worker 與主 session 檔案不重疊而分開，之後可合流）
+**拒答句仍然承諾「稍後補查」，但補查不會發生。**
+`rag/pipeline.py:18` 的 `NO_RESULT_ANSWER = "目前資料庫沒有相關優惠資訊。已記下這個問題、稍後補查。"`
 
-## 驗收與流程
+- 「已記下這個問題」是**真的**——F11 的 miss_log 照常寫入，key 到位後那些 miss 補得回來
+- 「稍後補查」目前是空頭支票
+- **沒有直接改掉它**：F15 的 frozen acceptance 逐字要求「回覆含『已記下這個問題、稍後補查』」，
+  而 F15 已 passing 並歸檔。改字＝讓一條已通過的 feature 失效，要走取代流程（開新條目、
+  舊條目原文不動加 `superseded_by`）並重新簽核——為一句暫時性的措辭燒一條 feature 不划算
+- **重新評估的觸發條件**：(a) 決定長期不開補查（那就正式取代 F15 的那條 acceptance），
+  或 (b) bot 開始有 Ryan 以外的使用者。key 補上就自動一致，什麼都不用改
 
-**F11-F15 五條全部 passing 並歸檔，`feature_list.json` 的 features 已空。** 下一條 feature 要自己開。
+## 目前狀態
 
-驗收踩到一次流程坑：第一輪 F13/F14/F15 驗收跑到一半時，主 session commit 了 `/code-review` 的
-修正，害它的基準（`75de002`）與 HEAD（`56f7da6`）分岔——那一輪等於白跑，還得再派一次針對性重驗。
-**驗收 worker 是對著工作樹現況驗的，不是對著某個 commit：驗收期間主工作區要凍結。**
+- `feature_list.json` 的 features **是空的**——F1–F15 全部 passing 並歸檔在
+  `docs/archive/features.jsonl`。下一條 feature 要自己開，開了要簽核才能動工
+- 242 tests／ruff clean／coverage 88%
+- 補查功能：**刻意關閉中**，不是壞掉
 
-值得記的是兩個獨立檢查（`/code-review` 與 acceptance-verifier）各自抓到同一條 P1，
-而且都是靠「拿一個只回 prompt 實際要求欄位的合規假 LLM 實跑」看穿的——
-測試綠燈是因為 fixture 手動塞了 prompt 從沒要求的欄位。**fixture 餵什麼、prompt 要什麼，是兩件事。**
+## 下一步（沒有一項在等 inbox）
 
-## 做到一半 / 已知未修
-
-1. **沒有任何一次真實的 Tavily 呼叫發生過**——`.env` 沒有 `TAVILY_API_KEY`，所有網搜與 LLM
-   都是注入假件。串接正確性證明得了，「Tavily 回不回得出台灣優惠網頁、抽取 prompt 對真實
-   網頁管不管用」證明不了。**已投 inbox question 請 Ryan 裁決**（申請 key：app.tavily.com，
-   免費 1000 次/月）。填進 `.env` 後跑 `uv run python -m rag.backfill` 就看得到真實結果
-2. 前 session 遺留照舊：`LLM_PROVIDER=openai` 真 API 手動驗一次、F16 Telegram 端真機驗 edit、
-   DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）、bot 95s/api 90s 逾時常數兩處
-3. `rag/backfill.py` 沒有排程——目前只能手動跑。要固定補查得自己掛 cron／排程任務
-4. 營運注意不變：ingest（bge-m3，1799 chunks）約 30–40 分鐘；`backfill` 只在有新資料時才觸發 ingest
-
-## 下一步（具體到可直接動手）
-
-1. **等 inbox 答覆**：Tavily key 要不要申請。**F13/F15 已 passing**（串接正確性驗得過），
-   key 只影響「真實搜尋品質」這件事——兩者刻意分開，不讓 key 卡住規格收官
-   - 2026-08-23 續：第一次的答覆是反問「這個是什麼用途？」，不是決策。已投新 question
-     `52fd8b1d`（解釋 Tavily 做哪一步、缺 key 時 `rag/backfill.py:153` fail fast 導致
-     F11-F15 實質關閉）並重新給選項。**這一輪沒有動工，repo 無變更。**
-2. key 到位後：`uv run python -m rag.backfill` 實跑一次，看 `requests=` 與 `stored=`，
-   確認抽取 prompt 對真實網頁管用；不管用就調 `_EXTRACT_INSTRUCTIONS`
-3. bot／API 要重啟才吃得到新的拒答句與警語
-4. 順手可收：上面 DEFER 的兩項技術債
+1. **要繼續推進就得先開 feature**——目前沒有 failing 條目可接。候選見下方技術債
+2. bot／API 若還跑著舊版，重啟才吃得到 F14 警語與新拒答句
+3. 技術債（前幾輪 DEFER，都還沒開條目）：
+   - `rag/llm.py` 與 `rag/generator.py` 的 provider 選擇／think 剝除／timeout 重複一份
+     （當初為讓 worker 與主 session 檔案不重疊而分開，可合流）
+   - 24h 去重用 miss 的 `created_at` 近似「搜過的時間」，被 limit 擋在窗外的 miss 可能提早重搜
+   - DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）
+   - bot 95s／api 90s 逾時常數散在兩處
+   - `LLM_PROVIDER=openai` 真 API 從沒手動驗過；F16 Telegram 端真機驗 edit 也還沒做
+4. 想開補查時：`.env` 填 `TAVILY_API_KEY` → `uv run python -m rag.backfill` →
+   看 `requests=` 與 `stored=`，確認抽取 prompt 對真實網頁管用；不管用就調 `_EXTRACT_INSTRUCTIONS`
 
 ## 啟動順序（不變）
 
