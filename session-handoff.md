@@ -26,17 +26,42 @@
    驗收者獨立真打四輪（48-59 秒回答案＋來源），其中一輪 claude 判資料不足觸發拒答句——真實 LLM 變異，
    要當生產 provider 用時留意體感。ollama 仍為預設。
 
+## 2026-08-25 深夜追記（無人看管 session：F20 未動工）
+
+9. **F20 依然無法執行，且今晚多出一個獨立阻塞**。已投兩筆 question 進 brief-me 收件匣待裁決。
+   - **阻塞一（原有）**：`.env` 與環境變數都沒有 `OPENAI_API_KEY`。實測 `LLM_PROVIDER=openai`
+     起 `select_provider()` 照設計 fail fast。金鑰要花錢，只有 Ryan 能決定 → 沒有動工。
+   - **阻塞二（新發現）**：acceptance 最後一步「切回 ollama 並確認 /query 仍正常」目前也過不了。
+     `POST /query` 空等滿 90 秒（`QUERY_TIMEOUT_SECONDS`）回 504；直接打 ollama
+     `/api/generate`（「說好一個字」、`num_predict=16`）190 秒仍無回應。
+   - **阻塞二的根因在主機不在 repo**：`ollama ps` 顯示 qwen3:8b 被排成 `94%/6% CPU/GPU`，
+     主機可用 RAM 只剩 **643MB / 16GB**（Memory Compression 1.5GB＋qemu/Docker＋vmmemWSL＋
+     Chrome＋防毒＋今晚多個併發 claude session）。RTX 3050 僅 8GB VRAM、已用 1.6GB，
+     塞不下 6GB 模型＋KV cache 才退回 CPU，再撞 RAM 耗盡而 thrash。
+     **刻意沒改 `OLLAMA_MODEL`**：`.env.example` 明寫 prompt 配方是針對 qwen3:8b 調的、換模型要重驗。
+   - **下次要驗 ollama 前先看這個**：`ollama ps` 的 PROCESSOR 欄。出現 `%CPU` 佔多數就是這個坑，
+     先關掉 Docker/WSL/其他 session 再驗，不要浪費時間往 repo 裡找 bug。
+
+### 這次 session 有查證的事實（給下一個 agent 省時間）
+
+- `uv run pytest -q` → **309 passed**（27.76s），與上一份 handoff 一致
+- API `/health` → 200；openai SDK 已裝（2.44.0）；`OPENAI_MODEL` 預設 `gpt-4o-mini`
+- 結論：**金鑰一到，F20 可以一次跑完**——除了金鑰，其他前置條件都已就緒（但 ollama 那步要等主機不忙）
+
 ## 目前狀態
 
 - 309 tests／90% coverage／ruff clean，HEAD 與 origin 同步（800afca）
 - `feature_list.json` 只剩 **F20**（openai 真 API 驗證），blocked：需要 Ryan 提供 `OPENAI_API_KEY`（會產生費用）；openai 分支依 Ryan 裁決保留
+- **08/25 深夜補**：ollama 目前在本機跑不動（RAM 耗盡 → CPU 退回 → thrash），詳見下方深夜追記
 - PTT 資料源**尚未掛進 `scraper/runner.py` 正式排程**——跑批走 `python -m rag.ptt_ingest`（刻意留到有需要再接線）
 - PTT offer 刻意不設 TTL（`expires_at=None`），理由見 `rag/ptt_extractor.py` docstring
 - Tavily 補查仍刻意關閉（Ryan 08/23 裁決）；拒答句「稍後補查」DEFER 條件不變
 
 ## 下一步
 
-1. F20：Ryan 填 `OPENAI_API_KEY` 後照 acceptance 跑一次真 API 驗證
+1. F20：Ryan 填 `OPENAI_API_KEY` 後照 acceptance 跑一次真 API 驗證。
+   **開跑前先 `ollama ps` 確認不是 `%CPU` 佔多數**——acceptance 最後一步要切回 ollama 驗 `/query`，
+   主機忙的時候那步必失敗（見深夜追記）
 2. 想讓 PTT 定期入庫：把 `rag/ptt_ingest` 掛排程或接進 runner（開新 feature）
 3. bot／API 已在 08/25 重啟至現行 code；PTT 新資料要入正式庫需手動跑一次 `uv run python -m rag.ptt_ingest`
 
