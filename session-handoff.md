@@ -19,10 +19,17 @@
 6. **F23（自癒式爬蟲）passing 歸檔**：解析失敗（例外／0 筆）→ 存證 `data/failed_pages/`＋警告；`python -m rag.selfheal` 消化存證區、LLM 抽取入庫標 `llm_fallback` tier＋專屬警語；修復迴圈文件 `docs/self-heal-fixture-loop.md`。首輪驗收抓到 cathay 未涵蓋（P2），修復後針對性重驗解除。
 7. **兩份調查報告**進 `docs/reports/`：idea-reality（開源空白／商業紅海，維持作品集定位）、20 家發卡行可爬性盤點（候選池：星展／凱基／永豐最優）。
 
+## 2026-08-25 晚場追記
+
+8. **F24（claude 訂閱制 provider）passing 歸檔**：`LLM_PROVIDER=claude` 時 generator 與 rag 側抽取全走
+   subprocess `claude -p`（吃 Claude 訂閱額度、不需 API key）；三 provider 共用 F17 的 select_provider。
+   驗收者獨立真打四輪（48-59 秒回答案＋來源），其中一輪 claude 判資料不足觸發拒答句——真實 LLM 變異，
+   要當生產 provider 用時留意體感。ollama 仍為預設。
+
 ## 目前狀態
 
-- 260 tests／89–91% coverage／ruff clean，HEAD 與 origin 同步（273a745）
-- `feature_list.json` 只剩 **F20**（openai 真 API 驗證），blocked：需要 Ryan 提供 `OPENAI_API_KEY`（會產生費用）
+- 309 tests／90% coverage／ruff clean，HEAD 與 origin 同步（800afca）
+- `feature_list.json` 只剩 **F20**（openai 真 API 驗證），blocked：需要 Ryan 提供 `OPENAI_API_KEY`（會產生費用）；openai 分支依 Ryan 裁決保留
 - PTT 資料源**尚未掛進 `scraper/runner.py` 正式排程**——跑批走 `python -m rag.ptt_ingest`（刻意留到有需要再接線）
 - PTT offer 刻意不設 TTL（`expires_at=None`），理由見 `rag/ptt_extractor.py` docstring
 - Tavily 補查仍刻意關閉（Ryan 08/23 裁決）；拒答句「稍後補查」DEFER 條件不變
