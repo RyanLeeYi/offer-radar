@@ -1,6 +1,11 @@
 """環境變數管理（pydantic-settings）。密鑰只從 .env / 環境讀，一律不硬編碼。"""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# LLM 逾時契約單一來源（F18）：api/main.py 直接用；bot/api_client.py 的 client 逾時
+# 由此值加安全邊際導出，維持 client > server 的關係，不寫死第二個獨立數字。
+QUERY_TIMEOUT_SECONDS = 90.0
 
 
 class Settings(BaseSettings):
@@ -15,7 +20,9 @@ class Settings(BaseSettings):
     # F13 網搜補資料：缺 key 由 rag/web_search.py 的 build_search fail fast
     tavily_api_key: str = ""
     telegram_bot_token: str = ""
-    database_path: str = "data/offers.db"
+    # DB 路徑單一來源（F18）：env var 統一為 OFFER_RADAR_DB（原 scraper/runner.py 直讀的
+    # 名稱），DATABASE_PATH 已移除，避免雙軌漂移
+    database_path: str = Field(default="data/offers.db", validation_alias="OFFER_RADAR_DB")
     chroma_path: str = "data/chroma"
     api_base_url: str = "http://localhost:8000"
     # 中文檢索需要 multilingual 模型（PRD 技術約束）。選型實測（DECISIONS D6）：

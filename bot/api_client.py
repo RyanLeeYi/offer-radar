@@ -1,4 +1,5 @@
-"""offer-radar API 的 HTTP client——bot 唯一的後端出口（邊界：不 import rag/）。
+"""offer-radar API 的 HTTP client——bot 唯一的後端出口（邊界：不 import rag/、api/，
+讀 config 不違反邊界）。
 
 transport（post/get）可注入：測試不打網路。連線層失敗（API 沒起、DNS 等）
 一律轉成 ApiUnavailableError，讓 handler 對使用者說人話。
@@ -9,8 +10,12 @@ from dataclasses import dataclass
 
 import requests
 
-# API 層的 /query 逾時契約是 90 秒（超過它自己會回 504），client 要等得比它久
-_QUERY_TIMEOUT = 95.0
+from config.settings import QUERY_TIMEOUT_SECONDS
+
+# API 層 /query 逾時契約見 config/settings.py；client 要等得比 server 久，
+# 加安全邊際導出，不寫死第二個獨立數字（F18）
+_TIMEOUT_MARGIN_SECONDS = 5.0
+_QUERY_TIMEOUT = QUERY_TIMEOUT_SECONDS + _TIMEOUT_MARGIN_SECONDS
 _HEALTH_TIMEOUT = 5.0
 
 

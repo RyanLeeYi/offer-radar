@@ -6,18 +6,16 @@
 """
 
 import logging
-import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from sqlite3 import Connection
 
+from config.settings import Settings
 from scraper.db import init_db, upsert_offer
 from scraper.http import PoliteClient
 from scraper.models import Offer
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_DB_PATH = "data/offers.db"
 
 
 @dataclass(frozen=True)
@@ -51,12 +49,11 @@ def run(sources: list[Source], conn: Connection) -> int:
 
 
 def cli_main(build_sources: Callable[[Callable[[str], str]], list[Source]]) -> int:
-    """CLI 入口共用流程：logging、DB 路徑（OFFER_RADAR_DB 可覆寫）、收尾關連線。"""
+    """CLI 入口共用流程：logging、DB 路徑（走 config.settings，OFFER_RADAR_DB 可覆寫）、收尾關連線。"""
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s"
     )
-    db_path = os.environ.get("OFFER_RADAR_DB", DEFAULT_DB_PATH)
-    conn = init_db(db_path)
+    conn = init_db(Settings().database_path)
     try:
         return run(build_sources(PoliteClient().get_text), conn)
     finally:
