@@ -52,7 +52,9 @@ inbox 答覆（`52fd8b1d`）：**「先不申請——補查功能暫時關著�
    - 24h 去重用 miss 的 `created_at` 近似「搜過的時間」，被 limit 擋在窗外的 miss 可能提早重搜
    - DB 路徑雙軌（`OFFER_RADAR_DB` vs `DATABASE_PATH`）
    - bot 95s／api 90s 逾時常數散在兩處
-   - `LLM_PROVIDER=openai` 真 API 從沒手動驗過；F16 Telegram 端真機驗 edit 也還沒做
+   - `LLM_PROVIDER=openai` 真 API 從沒手動驗過（F16 Telegram 真機驗 edit 已於 2026-08-25 補做：
+     查詢中提示→就地 edit 成答案／逾時訊息、F15 拒答句＋miss_log 寫入皆實測通過；
+     第一發冷載入吃滿 90s 逾時屬預期，暖機後約 30s 回答）
 4. 想開補查時：`.env` 填 `TAVILY_API_KEY` → `uv run python -m rag.backfill` →
    看 `requests=` 與 `stored=`，確認抽取 prompt 對真實網頁管用；不管用就調 `_EXTRACT_INSTRUCTIONS`
 
