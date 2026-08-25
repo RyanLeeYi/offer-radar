@@ -18,6 +18,9 @@ from rag.vector_store import Hit
 NO_RESULT_ANSWER = "目前資料庫沒有相關優惠資訊。已記下這個問題、稍後補查。"
 # F14：分層信任的落地點——引用網搜補來的資料時，警語與被標示的條目一起附在回答末尾
 UNVERIFIED_WARNING = "⚠️ 來自網路搜尋、未經驗證，使用前請確認官網"
+# F23：失敗頁自癒抽取（llm_fallback）——來源頁面本身可信，但欄位由 LLM 自動判讀，
+# 語意與 web_unverified 不同，重用同一個判斷位置（_append_warning）分開標示
+FALLBACK_WARNING = "注意：由 AI 自動抽取，內容可能有誤，請以官網為準"
 # e5-small 的 distance 分布擠（相關 0.10 vs 無關 0.11~0.16），門檻只當 sanity check；
 # 無關問題的真正防線是 LLM 拒答 + 清 sources（見 answer()）。實測記錄見 DECISIONS D6
 DEFAULT_MAX_DISTANCE = 0.4
@@ -136,14 +139,20 @@ def build_default(settings: Settings) -> RagRuntime:
 
 
 def _append_warning(reply: str, cited: list[Source]) -> str:
-    """引用未驗證資料時附警語並逐條列出（F14）。全 verified 時原字串原封不動回傳。
+    """引用未驗證或 LLM fallback 資料時附警語並逐條列出（F14／F23）。
 
-    只列 web_unverified 的標題——混合來源時 verified 條目不該被連坐標示。
+    全 verified 時原字串原封不動回傳；各 tier 只列自己的標題，不連坐標示其他 tier。
     """
-    unverified = [s.title for s in cited if s.trust_tier == "web_unverified"]
-    if not unverified:
+    reply = _append_tier_warning(reply, UNVERIFIED_WARNING, cited, "web_unverified")
+    reply = _append_tier_warning(reply, FALLBACK_WARNING, cited, "llm_fallback")
+    return reply
+
+
+def _append_tier_warning(reply: str, warning: str, cited: list[Source], tier: str) -> str:
+    titles = [s.title for s in cited if s.trust_tier == tier]
+    if not titles:
         return reply
-    return f"{reply}\n\n{UNVERIFIED_WARNING}：{'、'.join(unverified)}"
+    return f"{reply}\n\n{warning}：{'、'.join(titles)}"
 
 
 def _dedupe_by_offer(hits: list[Hit]) -> list[Hit]:

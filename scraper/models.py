@@ -8,7 +8,9 @@ from datetime import date, datetime
 
 SOURCE_TYPES = frozenset({"credit_card", "e_payment"})
 # 分層信任（F12）：爬蟲來源是 verified，查無時網搜補的資料只進 web_unverified 層並帶 TTL
-TRUST_TIERS = frozenset({"verified", "web_unverified"})
+# F23：既有來源解析失敗時，存證頁交給 rag/selfheal.py 做 LLM fallback 抽取——來源頁面
+# 本身可信，但欄位是 LLM 自動判讀、可能判讀有誤，故獨立於 web_unverified（網搜）另立一層
+TRUST_TIERS = frozenset({"verified", "web_unverified", "llm_fallback"})
 
 _REQUIRED_TEXT_FIELDS = ("title", "content", "source_url")
 
