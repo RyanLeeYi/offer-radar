@@ -13,6 +13,12 @@
    - 派工教訓：第一輪 worker 正確停下——acceptance 要求重用 rag/llm.py 但 touches 沒給 rag/ 檔案，與「scraper 不得 import rag」衝突；修 touches（scope_note 記錄）後續作成功。acceptance 原文全程未動。
 4. 四條全部 fresh-context 逐條驗收後 passing 並歸檔（F17/F18/F19 各 6/6、F21 11/11）。
 
+## 2026-08-25 下半場追記
+
+5. **F22（iPASS MONEY 官方資料源）passing 歸檔**：`scraper/sources/ipassmoney.py`＋`rag/ipass_extractor.py`＋`rag/ipass_ingest.py`（`python -m rag.ipass_ingest`），真實跑一頁 fetched=10 stored=9、全 verified 不帶警語。
+6. **F23（自癒式爬蟲）passing 歸檔**：解析失敗（例外／0 筆）→ 存證 `data/failed_pages/`＋警告；`python -m rag.selfheal` 消化存證區、LLM 抽取入庫標 `llm_fallback` tier＋專屬警語；修復迴圈文件 `docs/self-heal-fixture-loop.md`。首輪驗收抓到 cathay 未涵蓋（P2），修復後針對性重驗解除。
+7. **兩份調查報告**進 `docs/reports/`：idea-reality（開源空白／商業紅海，維持作品集定位）、20 家發卡行可爬性盤點（候選池：星展／凱基／永豐最優）。
+
 ## 目前狀態
 
 - 260 tests／89–91% coverage／ruff clean，HEAD 與 origin 同步（273a745）
