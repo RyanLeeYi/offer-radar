@@ -3,15 +3,17 @@
 兩個實作共用同一份 prompt 配方（``build_user_content``）：Ollama（本地預設）與
 OpenAI（可切換，R6）。防幻覺約束都在指令裡：只准根據 context 回答、沒把握就明說。
 qwen 系列會吐 <think> 推理段——同時用 think-off 與事後剝除雙保險（OpenAI 無此段，剝除無害）。
-transport 可注入：測試不打網路。供應商由 ``build_generator`` 依 settings 選擇並 fail fast。
+transport 可注入：測試不打網路。供應商由 ``build_generator`` 依 settings 選擇並 fail
+fast；provider 選擇、``<think>`` 剝除與逾時常數與 ``rag/llm.py`` 共用同一份定義
+（見 ``rag/llm_provider.py``）。
 """
 
-import re
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 import requests
 
+from rag.llm_provider import THINK_TAG, TIMEOUT, select_provider
 from rag.vector_store import Hit
 
 if TYPE_CHECKING:
@@ -26,10 +28,6 @@ _INSTRUCTIONS = (
     "只能引用資料中出現的數字，不得自行推算或編造。"
     "若上面所有資料經檢視後都與問題完全無關，才回覆「目前資料庫沒有相關優惠資訊」。"
 )
-_THINK_TAG = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
-# 冷載入 8B 模型實測約 24 秒 + 生成時間；PRD 的 30 秒逾時是 API 層（F5）的契約，
-# transport 層放寬到 120 秒讓冷啟動活得下來
-_TIMEOUT = 120.0
 
 PostFn = Callable[[str, dict], dict]
 CompleteFn = Callable[[str, list[dict]], str]
@@ -54,7 +52,7 @@ def build_user_content(question: str, hits: list[Hit]) -> str:
 
 
 def _http_post(url: str, payload: dict) -> dict:
-    response = requests.post(url, json=payload, timeout=_TIMEOUT)
+    response = requests.post(url, json=payload, timeout=TIMEOUT)
     response.raise_for_status()
     return response.json()
 
@@ -76,7 +74,7 @@ class OllamaGenerator:
             "messages": [{"role": "user", "content": build_user_content(question, hits)}],
         }
         reply = self._post(self._url, payload)["message"]["content"]
-        return _THINK_TAG.sub("", reply).strip()
+        return THINK_TAG.sub("", reply).strip()
 
 
 class OpenAIGenerator:
@@ -89,14 +87,14 @@ class OpenAIGenerator:
     def generate(self, question: str, hits: list[Hit]) -> str:
         messages = [{"role": "user", "content": build_user_content(question, hits)}]
         reply = self._complete(self._model, messages)
-        return _THINK_TAG.sub("", reply).strip()
+        return THINK_TAG.sub("", reply).strip()
 
 
 def _make_openai_complete(api_key: str) -> CompleteFn:
     """真正打 OpenAI 的 transport；延後建 client 讓測試路徑免依賴金鑰。"""
     from openai import OpenAI
 
-    client = OpenAI(api_key=api_key, timeout=_TIMEOUT)
+    client = OpenAI(api_key=api_key, timeout=TIMEOUT)
 
     def complete(model: str, messages: list[dict]) -> str:
         response = client.chat.completions.create(model=model, messages=messages)
@@ -107,13 +105,8 @@ def _make_openai_complete(api_key: str) -> CompleteFn:
 
 def build_generator(settings: "Settings"):
     """依 settings.llm_provider 選 generator；openai 缺金鑰或未知 provider 即 fail fast。"""
-    provider = settings.llm_provider.lower()
-    if provider == "ollama":
-        return OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model)
-    if provider == "openai":
-        if not settings.openai_api_key:
-            raise ValueError(
-                "LLM_PROVIDER=openai 需要 OPENAI_API_KEY，請在 .env 或環境變數設定後再啟動"
-            )
-        return OpenAIGenerator(model=settings.openai_model, api_key=settings.openai_api_key)
-    raise ValueError(f"未知的 LLM_PROVIDER：{settings.llm_provider!r}（可用 ollama 或 openai）")
+    return select_provider(
+        settings,
+        lambda: OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model),
+        lambda: OpenAIGenerator(model=settings.openai_model, api_key=settings.openai_api_key),
+    )
