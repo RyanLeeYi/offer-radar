@@ -18,7 +18,7 @@ from rag.extractor import Entity, build_search_terms, extract_offers, normalize_
 from rag.llm import LlmFn
 from rag.miss_log import DEDUPE_WINDOW, init_miss_log, list_misses, set_entity
 from rag.web_search import SearchResult
-from scraper.db import init_db, upsert_offer
+from scraper.db import init_db, init_search_log, record_search, recently_searched, upsert_offer
 from scraper.models import Offer
 
 logger = logging.getLogger(__name__)
@@ -53,16 +53,14 @@ def backfill(
 ) -> BackfillResult:
     """消化尚未正規化的 miss。回傳這輪的處理量，供呼叫端決定要不要重跑 ingest。
 
-    去重兩層：①同一輪內同 entity 只搜一次 ②24h 內已經有同 entity 的 miss 記錄就跳過
-    （miss 記下來之後很快就會被這個 job 消化，所以 created_at 足以當「搜過了」的近似）。
+    去重兩層：①同一輪內同 entity 只搜一次 ②該 entity 24h 內有沒有實際發出過搜尋，看
+    search_log（F19：不能用 miss.created_at 近似——被讀取 limit 擋在佇列外的 miss 可能
+    拖很久才真正處理，created_at 早就跟實際搜尋時間脫節了）。
     """
     init_miss_log(conn)
+    init_search_log(conn)
     misses = list_misses(conn)
-    recent = {
-        m.entity
-        for m in misses
-        if m.entity and m.entity != UNRESOLVED and now - m.created_at < DEDUPE_WINDOW
-    }
+    recent = recently_searched(conn, now - DEDUPE_WINDOW)
     pending = [m for m in misses if m.entity is None][:limit]
 
     seen: set[str] = set()
@@ -82,6 +80,7 @@ def backfill(
             continue
         seen.add(key)
         searched += 1
+        record_search(conn, key, now)
         offers, calls = _search_and_extract(entity, complete, search, now)
         requests += calls
         for offer in offers:

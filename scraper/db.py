@@ -61,6 +61,16 @@ _SELECT_COLUMNS = (
     "reward_rate, valid_from, valid_to, source_url, scraped_at, trust_tier, expires_at"
 )
 
+# 獨立於 miss_log 的表：只記「entity 上次實際發出搜尋的時間」，供背景補查 job（F15）
+# 24h 去重使用。不用 miss_log.created_at 近似，因為那是「miss 被記下來的時間」，
+# 被讀取 limit 擋在處理佇列外的 miss 可能拖很久才真正觸發搜尋，兩者會脫節（F19）。
+_SEARCH_LOG_SCHEMA = """
+CREATE TABLE IF NOT EXISTS search_log (
+    entity      TEXT PRIMARY KEY,
+    searched_at TEXT NOT NULL
+);
+"""
+
 
 def init_db(path: str | Path) -> sqlite3.Connection:
     """開啟（必要時建立）資料庫並確保 schema 存在。可重複呼叫。
@@ -71,8 +81,34 @@ def init_db(path: str | Path) -> sqlite3.Connection:
     conn = sqlite3.connect(path)
     conn.execute(_SCHEMA)
     _add_missing_columns(conn)
+    conn.execute(_SEARCH_LOG_SCHEMA)
     conn.commit()
     return conn
+
+
+def init_search_log(conn: sqlite3.Connection) -> None:
+    """確保 search_log 表存在。可重複呼叫（``init_db`` 也會建，這裡給只有 conn 沒有
+    path 的呼叫端，如 ``rag.backfill.backfill`` 用）。"""
+    conn.execute(_SEARCH_LOG_SCHEMA)
+    conn.commit()
+
+
+def record_search(conn: sqlite3.Connection, entity: str, when: datetime) -> None:
+    """記錄 entity 剛發出了一次實際搜尋。24h 去重判準只看這份記錄，不受讀取 limit 影響。"""
+    conn.execute(
+        "INSERT INTO search_log (entity, searched_at) VALUES (?, ?) "
+        "ON CONFLICT (entity) DO UPDATE SET searched_at = excluded.searched_at",
+        (entity, when.isoformat()),
+    )
+    conn.commit()
+
+
+def recently_searched(conn: sqlite3.Connection, since: datetime) -> set[str]:
+    """回傳 since 之後（不含）實際發出過搜尋的 entity 集合。"""
+    rows = conn.execute(
+        "SELECT entity FROM search_log WHERE searched_at > ?", (since.isoformat(),)
+    ).fetchall()
+    return {row[0] for row in rows}
 
 
 def _add_missing_columns(conn: sqlite3.Connection) -> None:

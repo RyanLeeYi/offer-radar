@@ -15,7 +15,7 @@ from rag.miss_log import init_miss_log, list_misses, record_miss
 from rag.pipeline import UNVERIFIED_WARNING, Pipeline
 from rag.retriever import Retriever
 from rag.vector_store import VectorStore
-from scraper.db import init_db, list_offers, upsert_offer
+from scraper.db import init_db, list_offers, record_search, upsert_offer
 
 NOW = datetime(2026, 8, 23, 12, 0, 0)
 
@@ -134,10 +134,10 @@ class TestBackfill:
         assert {c["query"] for c in calls} == {"全聯 信用卡優惠", "全聯 行動支付 回饋"}
 
     def test_entity_searched_within_24h_skipped(self, tmp_path):
-        """上一輪已經搜過同 entity（miss 記錄在 24h 內）→ 這輪不重搜，省 Tavily 額度。"""
+        """同 entity 上次「實際搜尋」在 24h 內（search_log 記錄）→ 這輪不重搜，省 Tavily 額度。"""
         conn = init_db(tmp_path / "offers.db")
         init_miss_log(conn)
-        record_miss(conn, "全聯刷什麼卡", NOW - timedelta(hours=2), entity="全聯")
+        record_search(conn, "全聯", NOW - timedelta(hours=2))
         record_miss(conn, "全聯有什麼回饋", NOW)
         complete, _ = fake_complete([NORMALIZED])
         calls: list = []
@@ -145,6 +145,46 @@ class TestBackfill:
         result = backfill(conn, complete, fake_search({}, calls), NOW)
 
         assert (result.processed, result.searched) == (1, 0)
+        assert calls == []
+
+    def test_entity_researched_after_24h(self, tmp_path):
+        """超過 24h：上次真的搜過，但已過窗，這輪要正常重搜（F19 acceptance b）。"""
+        conn = init_db(tmp_path / "offers.db")
+        init_miss_log(conn)
+        record_search(conn, "全聯", NOW - timedelta(hours=25))
+        record_miss(conn, "全聯有什麼回饋", NOW)
+        complete, _ = fake_complete([NORMALIZED])
+        calls: list = []
+
+        result = backfill(conn, complete, fake_search({}, calls), NOW)
+
+        assert result.searched == 1
+        assert calls  # 真的又發出搜尋了
+
+    def test_late_processed_backlog_miss_not_rechecked_by_stale_created_at(self, tmp_path):
+        """miss 被 limit 擋在佇列外很久，真正處理（實際搜尋）發生在很久之後——去重判準
+        要看 search_log 記的實際搜尋時間，不能用 miss.created_at 近似，否則舊 created_at
+        一到就被誤判「超過 24h」而提早重搜，白燒 Tavily 額度（F19 acceptance a，回歸自
+        限制 limit 讓 miss 積壓的既有情境）。"""
+        conn = init_db(tmp_path / "offers.db")
+        init_miss_log(conn)
+        stale = NOW - timedelta(hours=30)  # 早就記下來，但一直被 limit 擋著沒處理
+        record_miss(conn, "全聯刷什麼卡划算", stale)
+        complete, _ = fake_complete([NORMALIZED])
+
+        # 這一輪才終於輪到它——「真正搜尋」的時間是 NOW，不是 30 小時前的 stale
+        first = backfill(conn, complete, fake_search({}), NOW, limit=1)
+        assert first.searched == 1
+
+        # 縮小 limit 後的下一輪：同品牌新問法，相對「真正搜尋時間」NOW 還在 24h 內
+        record_miss(conn, "全聯有什麼回饋", NOW + timedelta(hours=1))
+        complete2, _ = fake_complete([NORMALIZED])
+        calls: list = []
+        second = backfill(
+            conn, complete2, fake_search({}, calls), NOW + timedelta(hours=1), limit=1
+        )
+
+        assert second.searched == 0
         assert calls == []
 
     def test_extraction_failure_stores_nothing_and_continues(self, tmp_path):
