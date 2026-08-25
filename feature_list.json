@@ -1,48 +1,6 @@
 {
   "features": [
     {
-      "id": "F17",
-      "name": "LLM 呼叫層合流：provider 選擇／think 剝除／timeout 單一定義",
-      "status": "failing",
-      "acceptance": "rag/llm.py 與 rag/generator.py 目前各有一份 provider 選擇（ollama/openai fail-fast）、<think> 剝除 regex 與 timeout 常數；合流後三者各只剩一處定義，generator 與通用 completion 共用同一個 provider factory。generator 的 prompt 配方（不用 system role、think 硬關、num_ctx 8192 等實測決策與其註解）原樣保留不動。既有測試全綠且不修改測試斷言（僅允許 import 路徑調整）；coverage 不低於 80%；ruff clean。",
-      "touches": [
-        "rag/llm.py",
-        "rag/generator.py",
-        "tests/test_llm.py",
-        "tests/test_generator.py"
-      ],
-      "requires": [],
-      "signed_off": true
-    },
-    {
-      "id": "F18",
-      "name": "設定收斂：DB 路徑單軌化＋/query 逾時契約單一來源",
-      "status": "failing",
-      "acceptance": "DB 路徑：scraper/runner.py 直讀環境變數 OFFER_RADAR_DB 而其他模組走 config/settings.py，收斂為 settings 單一來源；環境變數名統一為一個（保留 OFFER_RADAR_DB，settings 欄位讀它），另一個名稱自 code 與 .env.example 移除。逾時：api/main.py 的 QUERY_TIMEOUT_SECONDS=90 與 bot/api_client.py 的 _QUERY_TIMEOUT=95 收斂為 config/settings.py 單一契約常數，bot client timeout 由契約值加安全邊際導出（維持 client>server 的關係，不得寫死第二個獨立數字）；bot 仍不 import rag/ 與 api/（讀 config 不違反邊界）。測試證明：改契約常數一處，api 與 bot 兩端數值同步變動。既有測試全綠、coverage ≥ 80%、ruff clean。",
-      "touches": [
-        "config/settings.py",
-        "scraper/runner.py",
-        "api/main.py",
-        "bot/api_client.py",
-        "tests/test_settings.py"
-      ],
-      "requires": [],
-      "signed_off": true
-    },
-    {
-      "id": "F19",
-      "name": "backfill 24h 去重改以實際搜尋時間判定",
-      "status": "failing",
-      "acceptance": "現況：24h 去重用 miss 的 created_at 近似「搜過的時間」，被讀取 limit 擋在窗外的 miss 會提早重搜。改為以「該 entity 上次實際發出搜尋的時間」判定：搜尋發出時持久化記錄（miss 表加欄位或獨立 search log 表，實作自選），去重判準只看這份記錄、不受讀取 limit 影響。單元測試至少涵蓋：(a) 24h 內已搜過的 entity 縮小 limit 後仍不重搜；(b) 超過 24h 正常重搜；(c) 從未搜過的照搜。既有測試全綠、coverage ≥ 80%、ruff clean。",
-      "touches": [
-        "rag/backfill.py",
-        "scraper/db.py",
-        "tests/test_backfill.py"
-      ],
-      "requires": [],
-      "signed_off": true
-    },
-    {
       "id": "F20",
       "name": "LLM_PROVIDER=openai 真 API 手動驗證",
       "status": "failing",
