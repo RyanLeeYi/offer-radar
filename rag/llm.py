@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from rag.llm_provider import THINK_TAG, TIMEOUT, select_provider
+from rag.llm_provider import THINK_TAG, TIMEOUT, RunFn, claude_complete, select_provider
 
 if TYPE_CHECKING:
     from config.settings import Settings
@@ -54,10 +54,20 @@ def _openai_complete(model: str, api_key: str) -> LlmFn:
     return complete
 
 
+def _claude_complete(run: RunFn | None = None) -> LlmFn:
+    def complete(prompt: str) -> str:
+        reply = claude_complete(prompt) if run is None else claude_complete(prompt, run=run)
+        return THINK_TAG.sub("", reply).strip()
+
+    return complete
+
+
 def build_completion(settings: "Settings") -> LlmFn:
-    """依 ``settings.llm_provider`` 選 completion 函式；openai 缺金鑰或未知 provider 即 fail fast。"""
+    """依 ``settings.llm_provider`` 選 completion 函式；openai 缺金鑰、claude CLI 缺失或
+    未知 provider 即 fail fast。"""
     return select_provider(
         settings,
         lambda: _ollama_complete(settings.ollama_base_url, settings.ollama_model),
         lambda: _openai_complete(settings.openai_model, settings.openai_api_key),
+        _claude_complete,
     )

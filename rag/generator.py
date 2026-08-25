@@ -1,9 +1,10 @@
 """生成：把檢索到的 context + 問題組 prompt，呼叫 LLM。
 
-兩個實作共用同一份 prompt 配方（``build_user_content``）：Ollama（本地預設）與
-OpenAI（可切換，R6）。防幻覺約束都在指令裡：只准根據 context 回答、沒把握就明說。
-qwen 系列會吐 <think> 推理段——同時用 think-off 與事後剝除雙保險（OpenAI 無此段，剝除無害）。
-transport 可注入：測試不打網路。供應商由 ``build_generator`` 依 settings 選擇並 fail
+三個實作共用同一份 prompt 配方（``build_user_content``）：Ollama（本地預設）、
+OpenAI（可切換，R6）與 Claude（無頭 claude CLI，F24，免 API key）。防幻覺約束都在
+指令裡：只准根據 context 回答、沒把握就明說。qwen 系列會吐 <think> 推理段——同時用
+think-off 與事後剝除雙保險（OpenAI／Claude 無此段，剝除無害）。transport 可注入：
+測試不打網路／不呼叫真的 CLI。供應商由 ``build_generator`` 依 settings 選擇並 fail
 fast；provider 選擇、``<think>`` 剝除與逾時常數與 ``rag/llm.py`` 共用同一份定義
 （見 ``rag/llm_provider.py``）。
 """
@@ -13,7 +14,7 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from rag.llm_provider import THINK_TAG, TIMEOUT, select_provider
+from rag.llm_provider import THINK_TAG, TIMEOUT, RunFn, claude_complete, select_provider
 from rag.vector_store import Hit
 
 if TYPE_CHECKING:
@@ -90,6 +91,22 @@ class OpenAIGenerator:
         return THINK_TAG.sub("", reply).strip()
 
 
+class ClaudeGenerator:
+    """本機已登入的 claude CLI（無頭模式，``claude -p``，F24）。免 API key，走訂閱帳號；
+    run 可注入假 subprocess，供測試不呼叫真的 CLI。"""
+
+    def __init__(self, run: RunFn | None = None) -> None:
+        self._run = run
+
+    def generate(self, question: str, hits: list[Hit]) -> str:
+        prompt = build_user_content(question, hits)
+        if self._run is None:
+            reply = claude_complete(prompt)
+        else:
+            reply = claude_complete(prompt, run=self._run)
+        return THINK_TAG.sub("", reply).strip()
+
+
 def _make_openai_complete(api_key: str) -> CompleteFn:
     """真正打 OpenAI 的 transport；延後建 client 讓測試路徑免依賴金鑰。"""
     from openai import OpenAI
@@ -104,9 +121,11 @@ def _make_openai_complete(api_key: str) -> CompleteFn:
 
 
 def build_generator(settings: "Settings"):
-    """依 settings.llm_provider 選 generator；openai 缺金鑰或未知 provider 即 fail fast。"""
+    """依 settings.llm_provider 選 generator；openai 缺金鑰、claude CLI 缺失或未知
+    provider 即 fail fast。"""
     return select_provider(
         settings,
         lambda: OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model),
         lambda: OpenAIGenerator(model=settings.openai_model, api_key=settings.openai_api_key),
+        ClaudeGenerator,
     )

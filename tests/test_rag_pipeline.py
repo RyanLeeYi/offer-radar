@@ -7,6 +7,7 @@
 """
 
 import json
+from types import SimpleNamespace
 from urllib.parse import urlparse
 
 from rag.generator import OllamaGenerator
@@ -97,6 +98,53 @@ class TestOpenAIGenerator:
         assert oai_user == olm_user
 
 
+class TestClaudeGenerator:
+    def make_generator(self, reply: str, returncode: int = 0, stderr: str = ""):
+        from rag.generator import ClaudeGenerator
+
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str]):
+            calls.append(args)
+            return SimpleNamespace(returncode=returncode, stdout=reply, stderr=stderr)
+
+        return ClaudeGenerator(run=fake_run), calls
+
+    def test_prompt_contains_context_and_question(self):
+        gen, calls = self.make_generator("國泰卡 3% 回饋最划算")
+        answer = gen.generate("去好市多刷哪張卡", [make_hit(1, "好市多優惠", 0.1, "國泰 3%")])
+        assert answer == "國泰卡 3% 回饋最划算"
+        args = calls[0]
+        assert args[0] == "claude" and args[1] == "-p"
+        assert "國泰 3%" in args[2] and "去好市多刷哪張卡" in args[2]
+
+    def test_strips_think_tags(self):
+        gen, _ = self.make_generator("<think>使用者想比較卡片…</think>\n答案在這")
+        assert gen.generate("q", [make_hit(1, "t", 0.1)]) == "答案在這"
+
+    def test_shares_prompt_recipe_with_ollama(self):
+        hits = [make_hit(1, "好市多優惠", 0.1, "國泰 3%")]
+        claude_gen, claude_calls = self.make_generator("x")
+        claude_gen.generate("去好市多刷哪張卡", hits)
+        ollama_gen, olm_calls = TestOllamaGenerator().make_generator("x")
+        ollama_gen.generate("去好市多刷哪張卡", hits)
+        claude_prompt = claude_calls[0][2]
+        olm_user = olm_calls[0]["payload"]["messages"][-1]["content"]
+        assert claude_prompt == olm_user
+
+    def test_cli_nonzero_exit_fails_fast_with_readable_error(self):
+        """未登入等 CLI 執行失敗場景：非零結束碼即 raise，帶 stderr 供除錯。"""
+        gen, _ = self.make_generator(
+            "", returncode=1, stderr="Invalid API key · Please run /login"
+        )
+        try:
+            gen.generate("q", [make_hit(1, "t", 0.1)])
+        except RuntimeError as error:
+            assert "login" in str(error)
+        else:
+            raise AssertionError("claude CLI 非零結束碼時應 fail fast")
+
+
 class TestBuildGenerator:
     def _settings(self, **overrides):
         from config.settings import Settings
@@ -124,6 +172,23 @@ class TestBuildGenerator:
             assert "OPENAI_API_KEY" in str(error)
         else:
             raise AssertionError("缺 OPENAI_API_KEY 時應在建構期即 raise，不得延到查詢時")
+
+    def test_claude_provider_builds_claude_generator(self, monkeypatch):
+        from rag.generator import ClaudeGenerator, build_generator
+
+        monkeypatch.setattr("shutil.which", lambda name: r"C:\fake\claude.exe")
+        assert isinstance(build_generator(self._settings(llm_provider="claude")), ClaudeGenerator)
+
+    def test_claude_provider_missing_cli_fails_fast(self, monkeypatch):
+        from rag.generator import build_generator
+
+        monkeypatch.setattr("shutil.which", lambda name: None)
+        try:
+            build_generator(self._settings(llm_provider="claude"))
+        except ValueError as error:
+            assert "claude" in str(error)
+        else:
+            raise AssertionError("claude CLI 缺失時應在建構期即 fail fast，不得延到查詢時")
 
     def test_unknown_provider_fails_fast(self):
         from rag.generator import build_generator
