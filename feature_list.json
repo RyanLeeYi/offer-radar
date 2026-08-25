@@ -11,6 +11,37 @@
       "requires": [],
       "blocked_on": "需要 Ryan 提供 OPENAI_API_KEY（會產生 API 費用）",
       "signed_off": true
+    },
+    {
+      "id": "F22",
+      "name": "一卡通 iPASS MONEY 官方資料源：News 公告爬取＋LLM 抽取入庫",
+      "status": "failing",
+      "acceptance": "新增 scraper source 爬 iPASS 官網 News（https://www.i-pass.com.tw/News，靜態 HTML）：列表頁取最近 N 頁（可設定，預設 1）文章連結，逐篇抓 /News/Detail/{id} 內文；scraper 側純爬取不碰 LLM 不碰 DB。內文經 LLM 結構化抽取（重用 rag/llm.py 通用 completion，組裝入口放 rag 側、可獨立執行）成 Offer schema，通過驗證才入庫；非優惠新聞（公益、TPASS 公告等）抽不出優惠即跳過並記 log，不中斷整批。入庫信任標記與既有五個官方一手來源同級（非 web_unverified，查詢引用時不帶 F14 未驗證警語）。爬蟲禮儀：間隔 ≥1 秒、自訂 User-Agent（2026-08-25 實測該站無 robots.txt 限制）。單元測試以 fixture HTML 為準不打真站，涵蓋列表解析、內文抽取呼叫、非優惠跳過；另跑一次真實小批量（1 頁）作 evidence 記錄抓到與入庫筆數。reward_rate 保留原文不解析。既有測試全綠、coverage ≥ 80%、ruff clean。",
+      "touches": [
+        "scraper/sources/ipassmoney.py",
+        "rag/ipass_extractor.py",
+        "rag/ipass_ingest.py",
+        "tests/test_ipassmoney.py"
+      ],
+      "requires": [],
+      "signed_off": true
+    },
+    {
+      "id": "F23",
+      "name": "自癒式爬蟲：確定性解析失敗時 LLM fallback 抽取＋失敗頁存證",
+      "status": "failing",
+      "acceptance": "兩條腿缺一不可。腿一（fallback 買時間）：既有確定性來源解析失敗時（解析擲例外，或頁面抓取成功但解析出 0 筆），scraper 側把該頁原始 HTML 存進失敗頁存證區（含來源名與時間戳）並記警告 log，不中斷該輪其他來源；rag 側新增獨立入口（可獨立執行）消化存證區：HTML 去雜訊轉純文字（優先用既有依賴 bs4，要新增依賴先停下回報）、經 LLM 按 Offer schema 抽取、通過驗證才入庫，並以可區別的標記註明為 LLM fallback 抽取（實作方式自選：trust_tier 新列舉值或等效欄位；若加列舉值需同步 schema 檢查），查詢回答引用到 fallback 資料時帶「自動抽取可能有誤」性質的警語（重用 F14 警語機制的判斷位置）。腿二（fixture 根治）：存證的失敗頁可直接當測試 fixture 用，倉庫留一份文件或註解說明「解析壞掉 → 拿存證頁寫紅測試 → 修 selector → 刪存證」的修復迴圈。單元測試以 fixture 為準不打真站，至少涵蓋：解析擲例外觸發存證、解析 0 筆觸發存證、fallback 抽取成功入庫帶標記、抽取失敗跳過、警語觸發。既有五來源正常路徑行為不變（既有測試全綠）。coverage ≥ 80%、ruff clean。",
+      "touches": [
+        "scraper/runner.py",
+        "scraper/sources/_shared.py",
+        "scraper/models.py",
+        "scraper/db.py",
+        "rag/selfheal.py",
+        "rag/pipeline.py",
+        "tests/test_selfheal.py"
+      ],
+      "requires": [],
+      "signed_off": true
     }
   ]
 }
