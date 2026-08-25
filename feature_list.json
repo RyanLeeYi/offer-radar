@@ -11,22 +11,6 @@
       "requires": [],
       "blocked_on": "需要 Ryan 提供 OPENAI_API_KEY（會產生 API 費用）",
       "signed_off": true
-    },
-    {
-      "id": "F24",
-      "name": "LLM provider 新增 claude（訂閱制無頭 Claude Code）",
-      "status": "failing",
-      "acceptance": "generator 與通用 completion 新增 provider `claude`：以無頭 Claude Code（subprocess 呼叫 `claude -p`，帶明確 timeout）實作，走本機已登入的 Claude 訂閱帳號、不需任何 API key；provider 選擇沿 F17 的單一 factory（select_provider 擴為三選一），`LLM_PROVIDER=claude` 時 /query 與 rag 側抽取入口全部走同一實作。claude CLI 不存在或未登入時 fail fast 帶可讀錯誤訊息。既有 ollama 與 openai 分支行為不變（openai 保留不動）。單元測試以假 subprocess 為準不打真服務，涵蓋：claude provider 正常回覆、CLI 缺失 fail-fast、既有 provider 選擇回歸；另做一次真實驗證：`LLM_PROVIDER=claude` 下 POST /query 對真實 `claude -p` 回有效答案（含來源，非拒答非逾時），驗完設定切回 ollama 並確認正常，evidence 記錄查詢與回覆摘要。既有測試全綠、coverage ≥ 80%、ruff clean。",
-      "touches": [
-        "rag/llm_provider.py",
-        "rag/generator.py",
-        "rag/llm.py",
-        "config/settings.py",
-        "tests/test_rag_pipeline.py",
-        "tests/test_settings.py"
-      ],
-      "requires": [],
-      "signed_off": true
     }
   ]
 }
