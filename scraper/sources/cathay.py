@@ -10,16 +10,18 @@ import logging
 import re
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 
 from bs4 import BeautifulSoup
 
 from scraper.dates import parse_period
 from scraper.models import Offer
-from scraper.sources._shared import SKIPPABLE_ERRORS
+from scraper.sources._shared import FAILED_PAGES_DIR, SKIPPABLE_ERRORS, archive_failed_page
 
 logger = logging.getLogger(__name__)
 
 BANK = "國泰世華"
+SOURCE_NAME = "cathay"
 SITEMAP_URL = "https://www.cathay-cube.com.tw/sitemap.xml"
 _EVENT_MARKER = "/event/overview/credit-card/"
 _LOC = re.compile(r"<loc>([^<]+)</loc>")
@@ -73,15 +75,32 @@ def parse_event(model_json_text: str, url: str, scraped_at: datetime) -> Offer:
     )
 
 
-def fetch(get: Callable[[str], str]) -> list[Offer]:
+def fetch(get: Callable[[str], str], archive_dir: Path = FAILED_PAGES_DIR) -> list[Offer]:
     """sitemap → 逐活動頁抓 .model.json；單頁失敗（解析不出、暫時性 HTTP 錯誤、
-    非 JSON 回應）記 WARNING 跳過，不拖垮整個來源。"""
+    非 JSON 回應）記 WARNING 跳過，不拖垮整個來源。
+
+    F23 失敗頁存證：sitemap 抓取成功但解析出 0 筆活動頁、或單頁 parse_event 擲例外
+    （版面可能已改）時，把該頁原始內容存進失敗頁存證區並記 WARNING；HTTP 抓取本身
+    失敗沒有內容可存、下次重跑會自然重試，不存證（與 scraper/sources/_shared.py 一致）。
+    """
+    sitemap_xml = get(SITEMAP_URL)  # 抓取本身失敗往上拋，既有行為不變
+    urls = list_event_urls(sitemap_xml)
+    if not urls:
+        logger.warning("國泰 sitemap 解析出 0 筆活動頁，版面可能已改，存證備查：%s", SITEMAP_URL)
+        archive_failed_page(SOURCE_NAME, SITEMAP_URL, sitemap_xml, "zero_results", datetime.now(), archive_dir)
+
     offers = []
-    for url in list_event_urls(get(SITEMAP_URL)):
+    for url in urls:
         try:
-            offers.append(parse_event(get(url + ".model.json"), url, datetime.now()))
-        except SKIPPABLE_ERRORS as error:  # JSONDecodeError 是 ValueError 子類，一併涵蓋
+            detail_json = get(url + ".model.json")
+        except SKIPPABLE_ERRORS as error:
             logger.warning("跳過國泰活動頁 %s：%s", url, error)
+            continue
+        try:
+            offers.append(parse_event(detail_json, url, datetime.now()))
+        except SKIPPABLE_ERRORS as error:  # JSONDecodeError 是 ValueError 子類，一併涵蓋
+            logger.warning("跳過國泰活動頁 %s：%s，存證備查", url, error)
+            archive_failed_page(SOURCE_NAME, url, detail_json, "parse_error", datetime.now(), archive_dir)
     return offers
 
 

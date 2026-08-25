@@ -11,7 +11,7 @@
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import requests
 
@@ -20,6 +20,7 @@ from rag.selfheal import extract_offers, html_to_text, selfheal
 from rag.vector_store import Hit
 from scraper.db import init_db, list_offers, upsert_offer
 from scraper.models import Offer
+from scraper.sources import cathay
 from scraper.sources._shared import (
     FailedPage,
     archive_failed_page,
@@ -145,6 +146,85 @@ class TestFetchListedDetailsArchiving:
 
         assert len(offers) == 1
         assert read_failed_pages(tmp_path) == []  # 沒有存證檔
+
+
+class TestCathayFetchArchiving:
+    """cathay.py 走自己的抓取迴圈（sitemap，非 fetch_listed_details），F23 存證
+    比照同一套規則各自呼叫 archive_failed_page，這裡直接測 cathay.fetch 本身。"""
+
+    _EVENT_JSON = json.dumps({"title": "測試活動", ":items": {"cub_texta": {"text": "內容"}}})
+
+    def _sitemap(self, *urls: str) -> str:
+        locs = "".join(f"<url><loc>{u}</loc></url>" for u in urls)
+        return f"<urlset>{locs}</urlset>"
+
+    def test_parse_error_archives_page_and_other_events_unaffected(self, tmp_path):
+        good_url = "https://www.cathay-cube.com.tw/event/overview/credit-card/shopping/202607/good"
+        broken_url = "https://www.cathay-cube.com.tw/event/overview/credit-card/shopping/202607/broken"
+        sitemap = self._sitemap(good_url, broken_url)
+
+        def get(url):
+            if url == cathay.SITEMAP_URL:
+                return sitemap
+            if url == broken_url + ".model.json":
+                return "{}"  # 缺 title，parse_event 會 raise ValueError
+            return self._EVENT_JSON
+
+        offers = cathay.fetch(get, tmp_path)
+
+        assert len(offers) == 1  # 壞的那頁被丟棄，好的那頁照常入列，不中斷整批
+        assert offers[0].source_url == good_url
+
+        [page] = read_failed_pages(tmp_path)
+        assert page.reason == "parse_error"
+        assert page.source == "cathay"
+        assert page.url == broken_url
+        assert page.html == "{}"
+        assert datetime.now() - page.archived_at < timedelta(minutes=1)
+
+    def test_zero_event_urls_archives_sitemap(self, tmp_path):
+        sitemap = self._sitemap("https://www.cathay-cube.com.tw/other/not-an-event")
+
+        offers = cathay.fetch(lambda url: sitemap, tmp_path)
+
+        assert offers == []
+        [page] = read_failed_pages(tmp_path)
+        assert page.reason == "zero_results"
+        assert page.source == "cathay"
+        assert page.url == cathay.SITEMAP_URL
+        assert page.html == sitemap
+        assert datetime.now() - page.archived_at < timedelta(minutes=1)
+
+    def test_http_error_fetching_event_page_is_not_archived(self, tmp_path):
+        """既有行為不變：抓取（非解析）失敗只記 log 跳過，沒有內容可存、不存證。"""
+        good_url = "https://www.cathay-cube.com.tw/event/overview/credit-card/shopping/202607/good"
+        broken_url = "https://www.cathay-cube.com.tw/event/overview/credit-card/shopping/202607/broken"
+        sitemap = self._sitemap(good_url, broken_url)
+
+        def get(url):
+            if url == cathay.SITEMAP_URL:
+                return sitemap
+            if url == broken_url + ".model.json":
+                raise requests.ConnectionError("connection reset")
+            return self._EVENT_JSON
+
+        offers = cathay.fetch(get, tmp_path)
+
+        assert len(offers) == 1
+        assert read_failed_pages(tmp_path) == []  # 沒有存證檔
+
+    def test_normal_path_all_events_parsed_and_nothing_archived(self, tmp_path):
+        good_url = "https://www.cathay-cube.com.tw/event/overview/credit-card/shopping/202607/good"
+        sitemap = self._sitemap(good_url)
+
+        def get(url):
+            return sitemap if url == cathay.SITEMAP_URL else self._EVENT_JSON
+
+        offers = cathay.fetch(get, tmp_path)
+
+        assert len(offers) == 1
+        assert offers[0].source_url == good_url
+        assert read_failed_pages(tmp_path) == []
 
 
 class TestExtractOffers:

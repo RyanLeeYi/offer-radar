@@ -13,6 +13,12 @@ HTML 存進 `data/failed_pages/`（`.gitignore`，不進 git），`rag/selfheal.
 - `parse_error`：明細頁 `parse_detail` 擲例外（標題／內文抽不到）
 - `zero_results`：列表頁抓取成功，但 `list_detail_urls` 解析出 0 筆連結
 
+國泰世華（`scraper/sources/cathay.py`）走自己的抓取迴圈（sitemap，非分類列表頁），
+不經 `fetch_listed_details`，但比照同一套規則各自呼叫 `archive_failed_page`：
+
+- `parse_error`：活動頁 `parse_event` 擲例外
+- `zero_results`：sitemap 抓取成功，但 `list_event_urls` 解析出 0 筆活動頁
+
 檔名格式：`{來源}__{YYYYmmddTHHMMSS}__{reason}__{url-encoded 網址}.html`，內容是
 未經加工的原始 HTML——可以直接複製成測試 fixture。
 
