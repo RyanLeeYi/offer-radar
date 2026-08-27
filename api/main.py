@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from api.schemas import ErrorResponse, HealthResponse, QueryRequest, QueryResponse, SourceOut
 from config.settings import QUERY_TIMEOUT_SECONDS
-from rag.pipeline import RagRuntime, build_default
+from rag.pipeline import ProviderUnavailable, RagRuntime, build_default
 
 KB_NOT_READY_ERROR = "知識庫尚未建立"
 LLM_TIMEOUT_ERROR = "LLM 回應逾時，請稍後再試"
@@ -64,6 +64,10 @@ def create_app(
             )
         except TimeoutError:
             return _error(504, LLM_TIMEOUT_ERROR)
+        except ProviderUnavailable as exc:
+            # F25：預檢已判定 provider 出不了 token——同樣是 504 家族（上游沒回應），
+            # 但秒級回覆並帶可讀診斷，不讓使用者空等滿 query_timeout
+            return _error(504, str(exc))
         return QueryResponse(
             answer=result.answer,
             sources=[SourceOut.model_validate(s) for s in result.sources],

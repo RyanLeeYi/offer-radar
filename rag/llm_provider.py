@@ -16,6 +16,8 @@ import subprocess
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
+import requests
+
 if TYPE_CHECKING:
     from config.settings import Settings
 
@@ -77,3 +79,82 @@ def select_provider(
     raise ValueError(
         f"未知的 LLM_PROVIDER：{settings.llm_provider!r}（可用 ollama、openai 或 claude）"
     )
+
+
+# 健康預檢預算（F25）：模型已載入時吐 1 個 token 實測 <1 秒；5 秒還沒回就是主機在 thrash
+# （VRAM/RAM 不足退回 CPU），沒必要讓使用者空等 QUERY_TIMEOUT_SECONDS 的 90 秒。
+# ponytail: 這兩個常數就是校準旋鈕——換主機或換模型覺得誤殺，調這裡
+HEALTH_TIMEOUT = 5.0
+# /api/ps 給得比探測寬，因為它判的是「daemon 在不在」而不是「跑得快不快」，而 daemon
+# 不在時是 connection refused、秒回，根本用不到這個上限——它只擋「有人監聽但不回話」。
+# 給 10 秒是因為預設的 http://localhost:11434 在 Windows 上每次要 2.0 秒（先試 IPv6
+# ::1、closed 端點等約 2 秒才 fallback 到 IPv4；同一支 API 走 127.0.0.1 只要 0.016 秒，
+# 2026/08/27 實測）。原本抓 3 秒只剩不到 1 秒餘裕，主機一忙就會誤報「連不上 ollama」——
+# 偏偏主機忙正是這道預檢要處理的情境，誤殺比它想修的 bug 更糟。
+PS_TIMEOUT = 10.0
+
+
+class ProviderUnavailable(RuntimeError):
+    """LLM provider 現在實質不可用。
+
+    訊息寫成給使用者看的繁中句子——api/main.py 會原樣放進 /query 的 error 欄位。
+    """
+
+
+GetJsonFn = Callable[[str, float], dict]
+PostJsonFn = Callable[[str, dict, float], dict]
+
+
+def _get_json(url: str, timeout: float) -> dict:
+    response = requests.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def _post_json(url: str, payload: dict, timeout: float) -> dict:
+    response = requests.post(url, json=payload, timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def check_ollama(
+    base_url: str,
+    model: str,
+    get: GetJsonFn = _get_json,
+    post: PostJsonFn = _post_json,
+) -> None:
+    """查詢前確認 ollama 能即時產出 token，不行就 raise ProviderUnavailable（F25）。
+
+    先看 ``/api/ps`` 而不是直接探測：模型還沒載入時，探測本身會觸發冷載入（8B 實測約
+    24 秒），用短預算去探等於誤殺正常的冷啟動。**已載入卻連一個 token 都吐不出來**，
+    才是真的病了——2026/08/25 實測就是這個形狀（qwen3:8b 被排成 94% CPU，可用 RAM
+    只剩 643MB，/query 空等滿 90 秒才回 504）。
+
+    transport 可注入，測試不打網路。
+    """
+    base = base_url.rstrip("/")
+    try:
+        running = get(f"{base}/api/ps", PS_TIMEOUT).get("models", [])
+    except requests.RequestException as exc:
+        raise ProviderUnavailable(
+            f"連不上 ollama 服務（{base}），請確認 `ollama serve` 已啟動後再試"
+        ) from exc
+    if not any(model in (entry.get("model"), entry.get("name")) for entry in running):
+        return  # 冷啟動：慢是正常的，交給正式查詢自己等
+    try:
+        post(
+            f"{base}/api/generate",
+            {
+                "model": model,
+                "prompt": "hi",
+                "stream": False,
+                "think": False,
+                "options": {"num_predict": 1},
+            },
+            HEALTH_TIMEOUT,
+        )
+    except requests.RequestException as exc:
+        raise ProviderUnavailable(
+            f"ollama 模型 {model} 已載入，卻無法在 {HEALTH_TIMEOUT:.0f} 秒內產出 token，"
+            "可能是記憶體不足退回 CPU 執行；請稍後再試，或先釋放主機記憶體"
+        ) from exc

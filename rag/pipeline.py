@@ -10,6 +10,10 @@ from typing import Protocol
 from urllib.parse import urlparse
 
 from config.settings import Settings
+
+# api/ 只准經 rag/pipeline.py 碰 rag 層，健康預檢的例外型別在此轉出（定義在
+# rag/llm_provider.py，與 provider 選擇同一層）
+from rag.llm_provider import ProviderUnavailable as ProviderUnavailable  # noqa: F401
 from rag.vector_store import Hit
 
 # F15：查無時順帶告知會補查（非同步、不推播——補完要等下次再問才搜得到）。

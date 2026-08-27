@@ -14,7 +14,14 @@ from typing import TYPE_CHECKING
 
 import requests
 
-from rag.llm_provider import THINK_TAG, TIMEOUT, RunFn, claude_complete, select_provider
+from rag.llm_provider import (
+    THINK_TAG,
+    TIMEOUT,
+    RunFn,
+    check_ollama,
+    claude_complete,
+    select_provider,
+)
 from rag.vector_store import Hit
 
 if TYPE_CHECKING:
@@ -59,12 +66,22 @@ def _http_post(url: str, payload: dict) -> dict:
 
 
 class OllamaGenerator:
-    def __init__(self, base_url: str, model: str, post: PostFn = _http_post) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        post: PostFn = _http_post,
+        check: Callable[[], None] | None = None,
+    ) -> None:
         self._url = f"{base_url.rstrip('/')}/api/chat"
         self._model = model
         self._post = post
+        # 健康預檢由組裝端（build_generator）注入：直接建構的測試路徑不打網路探測（F25）
+        self._check = check
 
     def generate(self, question: str, hits: list[Hit]) -> str:
+        if self._check is not None:
+            self._check()
         payload = {
             "model": self._model,
             "stream": False,
@@ -125,7 +142,12 @@ def build_generator(settings: "Settings"):
     provider 即 fail fast。"""
     return select_provider(
         settings,
-        lambda: OllamaGenerator(base_url=settings.ollama_base_url, model=settings.ollama_model),
+        lambda: OllamaGenerator(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model,
+            # F25：查詢前先確認 ollama 出得了 token，出不了就快速失敗而非空等 90 秒
+            check=lambda: check_ollama(settings.ollama_base_url, settings.ollama_model),
+        ),
         lambda: OpenAIGenerator(model=settings.openai_model, api_key=settings.openai_api_key),
         ClaudeGenerator,
     )
