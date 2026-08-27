@@ -11,6 +11,22 @@
       "requires": [],
       "blocked_on": "需要 Ryan 提供 OPENAI_API_KEY（會產生 API 費用）",
       "signed_off": true
+    },
+    {
+      "id": "F25",
+      "name": "ollama provider 健康預檢（快速失敗取代空等 90 秒）",
+      "status": "failing",
+      "acceptance": "預設 ollama provider 下，/query 遇到 LLM 實質不可用時不再空等滿 QUERY_TIMEOUT_SECONDS（90 秒）才回 504：(1) rag/llm_provider.py 提供 ProviderUnavailable 例外與 check_ollama(base_url, model)：(a) GET /api/ps 連不上（ollama 沒起／網路錯）→ 立即 raise ProviderUnavailable，訊息為可讀繁中、指出 ollama 服務連不上；(b) 目標模型不在 /api/ps 的已載入清單 → 視為冷啟動直接放行、不做探測（不得因冷啟動誤殺）；(c) 模型已載入 → 以 POST /api/generate（num_predict=1）探測，逾 5 秒未回或請求失敗 → raise ProviderUnavailable，訊息為可讀繁中、點出模型已載入卻無法即時產出 token（可能是記憶體不足退回 CPU）。(2) 正式組裝路徑（build_generator → OllamaGenerator）每次 generate 前跑這道預檢；既有直接建構 OllamaGenerator 而未注入 check 的測試路徑行為不變（不打健康檢查）。(3) api/main.py 捕捉 ProviderUnavailable 回 504 + ErrorResponse，error 欄位為該例外的可讀訊息（不得是 500，也不得先空等 90 秒）；bot 沿用既有 504 文案，bot/ 不改。(4) 新增測試涵蓋 (1)(a)(b)(c) 與 (3)；uv run pytest 全綠、uv run ruff check . clean。非目標：不改 OLLAMA_MODEL、不改 QUERY_TIMEOUT_SECONDS、不改 rag/llm.py 的批次抽取路徑、不導入 streaming。",
+      "touches": [
+        "rag/llm_provider.py",
+        "rag/generator.py",
+        "rag/pipeline.py",
+        "api/main.py",
+        "tests/test_provider_health.py"
+      ],
+      "requires": [],
+      "scope_note": "來源：brief-me question 3d4ef80f-4e1b-4d21-a080-f055b1b24491，Ryan 2026-08-27 選 (b) 立案：加 provider 健康預檢，快速失敗取代空等 90 秒。acceptance 即該選項的落地，未擴張（選項 (c) 換小模型不在範圍內）。",
+      "signed_off": true
     }
   ]
 }
