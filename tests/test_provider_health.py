@@ -196,6 +196,7 @@ def test_timeout_budgets_keep_their_margins():
     HEALTH_TIMEOUT 由 acceptance 指定為 5 秒。PS_TIMEOUT 必須明顯高於
     localhost 在 Windows 上的 IPv6 fallback 成本（實測 2.0 秒／次），否則主機
     一忙就誤報「連不上 ollama」——而主機忙正是這道預檢存在的理由。
+    F26 把預設 base_url 改成 127.0.0.1 後這條餘裕仍要留著：.env 可以覆寫回 localhost。
     """
     assert HEALTH_TIMEOUT == 5.0
     assert PS_TIMEOUT >= 2.0 * 3  # 至少 3 倍餘裕

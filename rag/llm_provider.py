@@ -87,10 +87,11 @@ def select_provider(
 HEALTH_TIMEOUT = 5.0
 # /api/ps 給得比探測寬，因為它判的是「daemon 在不在」而不是「跑得快不快」，而 daemon
 # 不在時是 connection refused、秒回，根本用不到這個上限——它只擋「有人監聽但不回話」。
-# 給 10 秒是因為預設的 http://localhost:11434 在 Windows 上每次要 2.0 秒（先試 IPv6
-# ::1、closed 端點等約 2 秒才 fallback 到 IPv4；同一支 API 走 127.0.0.1 只要 0.016 秒，
-# 2026/08/27 實測）。原本抓 3 秒只剩不到 1 秒餘裕，主機一忙就會誤報「連不上 ollama」——
-# 偏偏主機忙正是這道預檢要處理的情境，誤殺比它想修的 bug 更糟。
+# 給 10 秒是為了容納 base_url 用 localhost 的情況：Windows 上 localhost 每次要 2.0 秒
+# （先試 IPv6 ::1、closed 端點等約 2 秒才 fallback 到 IPv4；127.0.0.1 只要 0.016 秒，
+# 2026/08/27 實測）。F26 已把預設改成 127.0.0.1，但 .env 隨時可以覆寫回去，餘裕要留著——
+# 原本抓 3 秒只剩不到 1 秒，主機一忙就會誤報「連不上 ollama」，而主機忙正是這道預檢要
+# 處理的情境，誤殺比它想修的 bug 更糟。
 PS_TIMEOUT = 10.0
 
 

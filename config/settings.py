@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     llm_provider: str = "ollama"
-    ollama_base_url: str = "http://localhost:11434"
+    # 127.0.0.1 而非 localhost：Windows 解析 localhost 會先試 IPv6 ::1，closed 端點
+    # 要等約 2 秒才 fallback 到 IPv4，每次 LLM 呼叫都白付（同機實測 2.0s vs 0.016s，
+    # 2026/08/27）。ollama 只監聽 IPv6 的環境用 .env 覆寫回 localhost 即可
+    ollama_base_url: str = "http://127.0.0.1:11434"
     # 預設 qwen3:8b：generator 的 prompt 配方（think-off、指令置尾）是針對它實測調的（D6）
     ollama_model: str = "qwen3:8b"
     openai_api_key: str = ""
