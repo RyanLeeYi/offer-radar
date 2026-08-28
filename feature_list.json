@@ -11,6 +11,33 @@
       "requires": [],
       "blocked_on": "需要 Ryan 提供 OPENAI_API_KEY（會產生 API 費用）",
       "signed_off": true
+    },
+    {
+      "id": "F26",
+      "name": "ollama 預設位址改 127.0.0.1（省掉 Windows IPv6 fallback 的 2 秒）",
+      "status": "failing",
+      "acceptance": "依 Ryan 2026/08/28 裁決（agent-brief question 59574c87「改掉預設值（127.0.0.1）」）：(1) config/settings.py 的 ollama_base_url 預設值改為 http://127.0.0.1:11434；(2) .env.example 的 OLLAMA_BASE_URL 範例值同步改為 http://127.0.0.1:11434，並註明原因（localhost 在 Windows 每次多付約 2 秒 IPv6 fallback）與「要用 localhost 就在 .env 覆寫」；(3) 環境變數覆寫行為不變：未設 OLLAMA_BASE_URL 時 Settings(_env_file=None).ollama_base_url == 'http://127.0.0.1:11434'，設了 OLLAMA_BASE_URL=http://localhost:11434 時就照設的值走——兩者都由 tests/test_settings.py 的斷言釘住；(4) rag/llm_provider.py 的 PS_TIMEOUT 維持 10.0 不縮小（.env 仍可能覆寫回 localhost），test_timeout_budgets_keep_their_margins 續綠；(5) 不改任何呼叫路徑的程式邏輯（llm.py / llm_provider.py / pipeline / api / bot 的行為不變）；(6) uv run pytest 全綠且新增的預設值測試存在，uv run ruff check . clean。",
+      "touches": [
+        "config/settings.py",
+        ".env.example",
+        "tests/test_settings.py"
+      ],
+      "requires": [],
+      "signed_off": true
+    },
+    {
+      "id": "F27",
+      "name": "API_BASE_URL 預設是否比照改 127.0.0.1（bot→API 同一個 IPv6 fallback 成本）",
+      "status": "failing",
+      "acceptance": "待 Ryan 裁決後才動工。F26 只改了 ollama 端，但 config/settings.py 的 api_base_url 與 .env.example 的 API_BASE_URL 預設同樣是 http://localhost:8000，bot 每次呼叫 /query 都吃同一個 Windows IPv6 fallback 成本（同機實測 localhost 2.0 秒 vs 127.0.0.1 0.016 秒）。若核准：把兩處預設改為 http://127.0.0.1:8000、tests 釘住預設與覆寫、bot 行為不變、pytest 全綠 + ruff clean。若否決：本條標 wontfix 並在 .env.example 註明 localhost 是刻意保留。",
+      "touches": [
+        "config/settings.py",
+        ".env.example",
+        "tests/test_settings.py"
+      ],
+      "requires": [],
+      "blocked_on": "需要 Ryan 裁決（已投 agent-brief question）",
+      "signed_off": false
     }
   ]
 }
