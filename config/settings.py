@@ -27,7 +27,9 @@ class Settings(BaseSettings):
     # 名稱），DATABASE_PATH 已移除，避免雙軌漂移
     database_path: str = Field(default="data/offers.db", validation_alias="OFFER_RADAR_DB")
     chroma_path: str = "data/chroma"
-    api_base_url: str = "http://localhost:8000"
+    # F27：與 ollama_base_url 同一個理由——bot 每次呼叫 /query 都白付那 2 秒。
+    # API 綁在別的位址（容器、遠端主機）時用 .env 覆寫
+    api_base_url: str = "http://127.0.0.1:8000"
     # 中文檢索需要 multilingual 模型（PRD 技術約束）。選型實測（DECISIONS D6）：
     # MiniLM 與 e5-small 鑑別度不足（好市多查詢排不進 top12），bge-m3 排序正確且邊際夠；
     # 若換回 e5 系列，Embedder 會自動補 query:/passage: 前綴
