@@ -23,8 +23,8 @@
         "tests/test_settings.py"
       ],
       "requires": [],
-      "blocked_on": "需要 Ryan 裁決（已投 agent-brief question）",
-      "signed_off": false
+      "blocked_on": "（已解除）Ryan 於 2026-08-31 經 agent-brief 核准：比照改 127.0.0.1",
+      "signed_off": true
     }
   ]
 }
