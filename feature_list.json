@@ -11,36 +11,6 @@
       "requires": [],
       "blocked_on": "需要 Ryan 提供 OPENAI_API_KEY（會產生 API 費用）",
       "signed_off": true
-    },
-    {
-      "id": "F27",
-      "name": "API_BASE_URL 預設是否比照改 127.0.0.1（bot→API 同一個 IPv6 fallback 成本）",
-      "status": "failing",
-      "acceptance": "待 Ryan 裁決後才動工。F26 只改了 ollama 端，但 config/settings.py 的 api_base_url 與 .env.example 的 API_BASE_URL 預設同樣是 http://localhost:8000，bot 每次呼叫 /query 都吃同一個 Windows IPv6 fallback 成本（同機實測 localhost 2.0 秒 vs 127.0.0.1 0.016 秒）。若核准：把兩處預設改為 http://127.0.0.1:8000、tests 釘住預設與覆寫、bot 行為不變、pytest 全綠 + ruff clean。若否決：本條標 wontfix 並在 .env.example 註明 localhost 是刻意保留。",
-      "touches": [
-        "config/settings.py",
-        ".env.example",
-        "tests/test_settings.py"
-      ],
-      "requires": [],
-      "blocked_on": "R5『pytest 全綠』卡在既有紅測試，需先做 F28（等 Ryan 簽核）",
-      "signed_off": true,
-      "evidence": "2026-08-31 實作完成但**未達 passing**。commit 66d73f4（基準 8bb64c0）。fresh-context acceptance-verifier 逐條判定 5/6 pass：(1) config/settings.py api_base_url 預設 http://127.0.0.1:8000 pass；(2) .env.example API_BASE_URL 同步 pass；(3) tests/test_settings.py 釘住預設值與 API_BASE_URL 覆寫 pass；(4) bot/ 零改動、仍讀 settings.api_base_url，行為不變 pass；(5) 『pytest 全綠』**fail**（P3, Confidence high）——322 條中 1 條紅：tests/test_backfill.py::test_end_to_end_miss_becomes_retrievable_with_warning，與本次改動無因果關係（見 F28），已 append .harness/failures.jsonl；(6) ruff check . clean pass。主機實測（真 socket，API 正在 8000 上跑）：localhost 2.620s vs 127.0.0.1 0.001s。處置：R5 判 DEFER 於 F28，F27 維持 failing——不改 frozen acceptance 讓它過，也不越過 touches 去修 rag/ingest.py。F28 核准並修好後重驗一次即可解除。"
-    },
-    {
-      "id": "F28",
-      "name": "測試套件兩處腐爛：ingest 的時鐘未注入（time bomb）＋ test_settings 洩漏逾時常數",
-      "status": "failing",
-      "acceptance": "修掉兩個與功能無關、但會讓 `uv run pytest` 無法全綠的測試基礎設施缺陷，兩者各自留下會紅的回歸檢查：\n(1) **時間炸彈**：rag/ingest.py:35 的 ingest() 收了 today 卻沒收 now，呼叫 list_active_offers(conn, today) 時 scraper/db.py:172 的 `now = now or datetime.now()` fallback 成真實系統時鐘，於是 expires_at（web_unverified 的 7 天 TTL）用真實時間過濾、today 用寫死日期，兩把尺不同步。tests/test_backfill.py 的 NOW=2026-08-23 + 7 天 TTL 在 2026-08-31 起必然紅（ingest 讀到 0 筆）。修法：ingest() 增加 now: datetime | None = None 並透傳給 list_active_offers（預設 None 維持真實時鐘，production 兩個呼叫點行為不變）；tests/test_backfill.py 傳 now=NOW。驗收：該條測試通過，且把系統日期概念性推後不會再讓它紅（測試不得再依賴真實時鐘）。\n(2) **狀態洩漏**：tests/test_settings.py::test_query_timeout_single_contract_constant 在 finally 裡 reload api.main 與 bot.api_client，但 monkeypatch 還原 config.settings.QUERY_TIMEOUT_SECONDS 發生在 finally 之後，於是兩個模組留著 42.0/47.0 污染後續測試。實證：`uv run pytest tests/test_settings.py tests/test_bot.py` 會紅在 test_client_query_posts_question（assert 47.0 > 90），但整套按字母序跑不會紅。修法：讓還原順序正確（例如改用 try/finally 自行 setattr 還原，或在 reload 前先還原常數）。驗收：`uv run pytest tests/test_settings.py tests/test_bot.py` 與 `uv run pytest tests/test_bot.py tests/test_settings.py` 兩種順序都全綠。\n共同驗收：`uv run pytest` 全綠、`uv run ruff check .` clean。非目標：不改 TTL 天數、不改 list_active_offers 的過濾語意、不改 QUERY_TIMEOUT_SECONDS 的值、不動任何 production 呼叫點的既有行為。",
-      "touches": [
-        "rag/ingest.py",
-        "tests/test_backfill.py",
-        "tests/test_settings.py"
-      ],
-      "requires": [],
-      "rationale": "來源：2026-08-31 做 F27 時，pytest 出現一條與 F27 無關的紅測試。已確認兩個缺陷在基準 commit 8bb64c0 上同樣重現，都是既有問題、不是 F27 引入。為什麼要做：F27 的 acceptance 字面要求『pytest 全綠』，這條不修 F27 就過不了驗收（目前卡在這）；而且 (1) 是每年都會再爆一次的時間炸彈，(2) 是會隨測試執行順序時隱時現的假訊號。取捨：本可順手兩行修掉，但 F27 的 touches 不含 rag/ingest.py，越過 touches 動 production 檔案正是 F21／F23 踩過的坑（acceptance 與 touches 互斥時應停下），所以開卡等簽核而不夾帶。修法已經查到根因、範圍很小，核准後大約十分鐘。",
-      "signed_off": true,
-      "blocked_on": null
     }
   ]
 }
