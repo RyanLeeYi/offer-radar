@@ -39,8 +39,8 @@
       ],
       "requires": [],
       "rationale": "來源：2026-08-31 做 F27 時，pytest 出現一條與 F27 無關的紅測試。已確認兩個缺陷在基準 commit 8bb64c0 上同樣重現，都是既有問題、不是 F27 引入。為什麼要做：F27 的 acceptance 字面要求『pytest 全綠』，這條不修 F27 就過不了驗收（目前卡在這）；而且 (1) 是每年都會再爆一次的時間炸彈，(2) 是會隨測試執行順序時隱時現的假訊號。取捨：本可順手兩行修掉，但 F27 的 touches 不含 rag/ingest.py，越過 touches 動 production 檔案正是 F21／F23 踩過的坑（acceptance 與 touches 互斥時應停下），所以開卡等簽核而不夾帶。修法已經查到根因、範圍很小，核准後大約十分鐘。",
-      "signed_off": false,
-      "blocked_on": "需要 Ryan 簽核（已投 agent-brief sign-off question）"
+      "signed_off": true,
+      "blocked_on": null
     }
   ]
 }
