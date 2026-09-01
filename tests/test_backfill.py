@@ -7,7 +7,7 @@
 """
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from rag.backfill import UNRESOLVED, backfill
 from rag.ingest import ingest
@@ -263,7 +263,7 @@ def test_end_to_end_miss_becomes_retrievable_with_warning(tmp_path):
     assert backfill(conn, complete, search, NOW).stored == 1
 
     # 3. ingest 進向量庫
-    assert ingest(conn, store, fake_embed, today=date(2026, 8, 23)).offers == 1
+    assert ingest(conn, store, fake_embed, today=NOW.date(), now=NOW).offers == 1
 
     # 4. 再問一次同類問題：檢索得到，且回答帶 F14 未驗證警語
     second = pipeline.answer("全聯刷什麼卡划算")

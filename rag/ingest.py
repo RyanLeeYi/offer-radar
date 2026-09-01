@@ -30,9 +30,20 @@ class IngestResult:
     chunks: int
 
 
-def ingest(conn: Connection, store: VectorStore, embed: EmbedFn, today: date) -> IngestResult:
-    """全量重建：讀未過期優惠 → 切塊 → embedding → 寫入 ChromaDB。重跑 idempotent。"""
-    active = list_active_offers(conn, today)
+def ingest(
+    conn: Connection,
+    store: VectorStore,
+    embed: EmbedFn,
+    today: date,
+    now: datetime | None = None,
+) -> IngestResult:
+    """全量重建：讀未過期優惠 → 切塊 → embedding → 寫入 ChromaDB。重跑 idempotent。
+
+    ``now`` 與 ``today`` 是同一把尺的兩種精度：today 篩優惠效期、now 篩 web_unverified
+    的 TTL。測試要兩者同步注入，否則 TTL 會偷用真實時鐘（寫死日期的測試遲早變紅）。
+    預設 None 沿用 list_active_offers 的真實時鐘，production 行為不變。
+    """
+    active = list_active_offers(conn, today, now)
 
     ids: list[str] = []
     texts: list[str] = []

@@ -54,5 +54,8 @@ def test_query_timeout_single_contract_constant(monkeypatch):
         assert bot.api_client._QUERY_TIMEOUT == 42.0 + bot.api_client._TIMEOUT_MARGIN_SECONDS
         assert bot.api_client._QUERY_TIMEOUT > api.main.QUERY_TIMEOUT_SECONDS
     finally:
+        # 先還原常數再 reload：monkeypatch 自己的還原在 finally 之後才發生，
+        # 順序反了兩個模組會留著 42.0/47.0 污染後面跑的測試
+        monkeypatch.undo()
         importlib.reload(api.main)
         importlib.reload(bot.api_client)
