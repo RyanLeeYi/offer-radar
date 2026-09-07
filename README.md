@@ -1,134 +1,160 @@
-# offer-radar — 消費優惠比較 RAG
+# offer-radar
 
-用自然語言問「去好市多刷哪張卡最划算」，系統從台灣信用卡／電子支付優惠中檢索、比較，並附上來源連結。
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab?style=flat-square)](https://www.python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat-square)](https://fastapi.tiangolo.com)
+[![ChromaDB](https://img.shields.io/badge/ChromaDB-vector%20store-ff6f00?style=flat-square)](https://www.trychroma.com)
+[![Tests](https://img.shields.io/badge/tests-322%20passing-brightgreen?style=flat-square)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-89%25-brightgreen?style=flat-square)](#testing)
 
-台灣的信用卡與電支優惠散在各家官網、隔週就改，要比較得自己一頁頁翻。offer-radar 把這些優惠爬進向量資料庫，用 RAG（Retrieval-Augmented Generation）讓你像聊天一樣問，回答只根據實際入庫的優惠、每個結論都標來源，查無資料時明說「沒有」而不編造。
+[繁體中文](README.zh-TW.md)
 
-> 這是一個作品集專案，目的是端到端自建一條 RAG pipeline（爬蟲 → 切塊 → embedding → 向量檢索 → 生成），涵蓋中文 embedding、防幻覺 prompt、local LLM 部署與供應商切換。
+**Ask "which card should I use at Costco?" in plain language and get an answer grounded in real Taiwanese credit-card and e-payment offers, with sources.**
 
-## 架構
+Card and wallet promotions in Taiwan are scattered across bank sites and change every other week. offer-radar crawls them into a vector store and answers questions through a Retrieval-Augmented Generation (RAG) pipeline that only uses what is actually in the database. Every conclusion cites its source, and when nothing matches it says so instead of inventing an offer.
+
+> [!NOTE]
+> This is a portfolio project. The goal was to build a RAG pipeline end to end (scrape, chunk, embed, retrieve, generate) with a multilingual embedding model, an anti-hallucination prompt, a local LLM, and provider switching, and to keep it honest with 300+ tests.
+
+## Features
+
+- **Hybrid retrieval**: Chinese n-gram exact match plus vector similarity. Pure vector search kept burying "Costco" inside long terms-and-conditions chunks; exact keyword hits now bypass the distance threshold.
+- **Grounded answers**: the prompt refuses when no retrieved offer is relevant, and the pipeline clears the source list on refusal so the API never returns citations for a non-answer.
+- **Trust tiers**: official sources are `verified`; offers extracted from PTT threads or web search are `web_unverified` and get a warning label in the answer. Expired unverified data never reaches the vector store.
+- **Self-healing scrapers**: when a site changes layout and parsing fails, the raw page is kept as evidence and an LLM extractor produces a fallback record tagged `llm_fallback`, so ingestion degrades instead of silently dropping a source.
+- **Miss log**: unanswerable queries are recorded with a timestamp so a background job can backfill data later.
+- **Three interfaces, one pipeline**: CLI, FastAPI (with Swagger), and a Telegram bot that only talks HTTP.
+- **Local by default**: Ollama `qwen3:8b` and `BAAI/bge-m3` run on your machine. Switch to OpenAI with one environment variable.
+
+## Architecture
 
 ```
-  各家官網                                          使用者
-  信用卡 × 3（國泰／台新／富邦）                        │
-  電子支付 × 2（街口／icash Pay）                    Telegram
-     │                                                │
-     ▼  scraper/ （requests + BeautifulSoup）          ▼
-  SQLite (data/offers.db)  ◀── 只 upsert、來源隔離   bot/ （只打 HTTP）
-     │                                                │
-     ▼  rag.ingest                                    ▼
-  切塊 → embedding(bge-m3) → ChromaDB (data/chroma)  api/ （FastAPI）
-     │                                                │
-     └──────────────▶  rag/pipeline  ◀────────────────┘
-        混合檢索（n-gram 精確匹配 + 向量）
-        → 防幻覺 prompt → LLM（Ollama 預設 / OpenAI 可切換）
+  Bank / wallet sites                                    User
+  Credit cards: Cathay, Taishin, Fubon                     |
+  E-payments: JKOPAY, icash Pay, iPASS MONEY           Telegram
+  Community: PTT Lifeismoney                               |
+     |                                                     v
+     v  scraper/  (requests + BeautifulSoup)            bot/  (HTTP only)
+  SQLite  data/offers.db   <-- upsert only, sources isolated
+     |                                                     |
+     v  rag.ingest                                         v
+  chunk -> embed (bge-m3) -> ChromaDB  data/chroma      api/  (FastAPI)
+     |                                                     |
+     +--------------->  rag/pipeline  <--------------------+
+        hybrid retrieval (n-gram exact + vector)
+        -> anti-hallucination prompt -> LLM (Ollama default, OpenAI optional)
 ```
 
-各層邊界嚴格分離（見 `docs/ARCHITECTURE.md`）：`scraper/` 不碰 `rag/`；ChromaDB 只經 `rag/vector_store.py`；`api/` 只呼叫 `rag/pipeline.py`；`bot/` 只打 HTTP。
+Layer boundaries are strict and tested (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)): `scraper/` never imports `rag/`; ChromaDB is only touched through `rag/vector_store.py`; `api/` only calls `rag/pipeline.py`; `bot/` only speaks HTTP.
 
-| 層 | 技術 |
-|----|------|
-| 爬蟲 | requests + BeautifulSoup（靜態頁、AEM `.model.json`、Next.js RSC payload） |
-| 原始資料 | SQLite |
-| 向量資料庫 | ChromaDB |
-| Embedding | sentence-transformers（`BAAI/bge-m3`，multilingual，local） |
-| 檢索 | 混合制：中文 n-gram `$contains` 精確匹配 + 向量相似度 |
-| LLM | Ollama `qwen3:8b`（預設，local）/ OpenAI（可切換） |
-| API | FastAPI（Swagger 可測） |
-| 介面 | Telegram Bot |
-| 套件管理 | uv |
+| Layer | Technology |
+|---|---|
+| Scraping | requests + BeautifulSoup (static HTML, AEM `.model.json`, Next.js RSC payloads) |
+| Raw storage | SQLite |
+| Vector store | ChromaDB |
+| Embedding | sentence-transformers, `BAAI/bge-m3` (multilingual, local) |
+| Retrieval | hybrid: Chinese n-gram `$contains` + cosine similarity |
+| LLM | Ollama `qwen3:8b` (default) or OpenAI |
+| API | FastAPI |
+| Interface | Telegram bot |
+| Tooling | uv, pytest, ruff |
 
-## 快速開始
+## Getting started
 
-**前置**：[uv](https://docs.astral.sh/uv/)、Python ≥ 3.11、[Ollama](https://ollama.com/)（預設 LLM；用 OpenAI 則免）。
+**Prerequisites**: [uv](https://docs.astral.sh/uv/), Python 3.11+, [Ollama](https://ollama.com/) (skip if you use OpenAI).
 
 ```bash
-# 1. 環境（依賴 + .env + 煙霧測試）
+# 1. Dependencies, .env from template, smoke test
 ./init.sh
 
-# 2. 拉 local 模型（用 OpenAI 可跳過）
+# 2. Local model (skip for OpenAI)
 ollama pull qwen3:8b
 
-# 3. 爬優惠進 SQLite（禮貌爬蟲：自報 UA、請求間隔 ≥ 1 秒）
-uv run python -m scraper.credit_card    # 國泰、台新、富邦
-uv run python -m scraper.e_payment      # 街口、icash Pay
+# 3. Crawl offers into SQLite (polite: custom UA, >= 1 s between requests)
+uv run python -m scraper.credit_card     # Cathay, Taishin, Fubon
+uv run python -m scraper.e_payment       # JKOPAY, icash Pay
+uv run python -m rag.ipass_ingest        # iPASS MONEY news (LLM extraction)
+uv run python -m rag.ptt_ingest          # PTT Lifeismoney (LLM extraction, web_unverified)
 
-# 4. 向量化入庫（切塊 → embedding → ChromaDB，首跑會下載 bge-m3）
+# 4. Chunk, embed, and load ChromaDB (first run downloads bge-m3)
 uv run python -m rag.ingest
 
-# 5. 問問題（CLI）
+# 5. Ask
 uv run python -m rag.query "去好市多刷哪張卡最划算"
 ```
 
-## 使用
-
-三種介面，同一條 pipeline：
+## Usage
 
 **CLI**
+
 ```bash
 uv run python -m rag.query "便利商店有什麼行動支付優惠"
 ```
 
-**HTTP API**（FastAPI）
+**HTTP API**
+
 ```bash
-uv run uvicorn api.main:app          # Swagger UI: http://localhost:8000/docs
+uv run uvicorn api.main:app            # Swagger UI at http://localhost:8000/docs
 curl -X POST http://localhost:8000/query \
   -H "Content-Type: application/json" \
   -d '{"question": "去好市多刷哪張卡最划算"}'
-# GET /health 回 {ok, offers_count, last_ingest_at}
+# GET /health -> {ok, offers_count, last_ingest_at}
 ```
 
-**Telegram Bot**（`.env` 填 `TELEGRAM_BOT_TOKEN` 後）
+**Telegram bot** (set `TELEGRAM_BOT_TOKEN` in `.env`)
 
-一鍵啟動三個 process（Ollama → API → Bot）：
-- **啟動**：雙擊 `run.bat`（或 PowerShell 跑 `./run.ps1`）
-- **關閉**：在視窗按 `Ctrl+C`，或雙擊 `stop.bat`
+One-shot launcher for Ollama, API, and bot on Windows: double-click `run.bat` or run `./run.ps1`. Stop with `Ctrl+C` or `stop.bat`. Or start each process yourself:
 
-或手動分開起：
 ```bash
 ollama serve
-uv run uvicorn api.main:app          # bot 打這個 API
-uv run python -m bot.main            # long polling
+uv run uvicorn api.main:app
+uv run python -m bot.main              # long polling
 ```
 
-### 範例問答
+**Example behaviour**
 
-| 問 | 系統行為 |
-|----|----------|
-| 去好市多刷哪張卡最划算 | 檢索相關優惠，比較後給結論並標【資料 N】來源 |
-| 便利商店有什麼行動支付優惠 | 彙整街口／icash Pay 的超商通路優惠 |
-| 去火星旅遊要刷哪張卡 | 查無相關資料 → 明說「目前資料庫沒有相關優惠資訊」、不編造 |
+| Question | What happens |
+|---|---|
+| 去好市多刷哪張卡最划算 | Retrieves matching offers, compares them, cites each as【資料 N】 |
+| 便利商店有什麼行動支付優惠 | Aggregates convenience-store promotions across wallets |
+| 去火星旅遊要刷哪張卡 | No relevant data: replies that the database has nothing, with no sources |
 
-## LLM 供應商切換
+## Configuration
 
-預設 local Ollama，改用 OpenAI 只需環境變數：
+All settings live in `.env` (template: [`.env.example`](.env.example)). The ones you are most likely to change:
 
 ```bash
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-...        # 未填時服務啟動即失敗（fail fast，不拖到查詢時）
-OPENAI_MODEL=gpt-4o-mini
+LLM_PROVIDER=ollama            # or openai
+OLLAMA_MODEL=qwen3:8b          # prompt recipe is tuned for this model
+OPENAI_API_KEY=                # required when LLM_PROVIDER=openai; startup fails fast if missing
+EMBEDDING_MODEL=BAAI/bge-m3
+TELEGRAM_BOT_TOKEN=
+TAVILY_API_KEY=                # optional: enables `rag.backfill` web search for missed queries
 ```
 
-## 測試
+> [!TIP]
+> Use `127.0.0.1` rather than `localhost` for local service URLs on Windows. `localhost` resolves to IPv6 first and each request waits about two seconds before falling back to IPv4.
+
+## Testing
 
 ```bash
-uv run pytest                # 158 tests
-uv run pytest --cov=.        # coverage 90%
+uv run pytest                  # 322 tests
+uv run pytest --cov=.          # ~89% coverage
 uv run ruff check .
 ```
 
-爬蟲解析全部用本地 HTML fixture，測試不打真站。
+Scraper parsers are tested against local HTML fixtures. No test hits a live site.
 
-## 設計取捨（詳見 `docs/archive/` 與開發紀錄）
+## Design notes
 
-- **純向量檢索對精確商家名有天花板**——「好市多」的正解藏在長條款 chunk 裡，換三種 embedding 都排不進 top-k。改用**混合檢索**（中文 n-gram 精確匹配 + 向量），關鍵詞命中免距離門檻。
-- **防幻覺兩道防線**——檢索門檻做 sanity check，真正的防線是 prompt 指令要求「資料都無關才拒答」+ pipeline 層清空 sources。實測 `qwen3:8b` 對 prompt 位置敏感（拒答句放 system role 會無條件拒答），配方是逐次實驗調出來的。
-- **常駐 API + 批次 ingest 的狀態共享**——ingest 全量重建 ChromaDB collection 會換 UUID，常駐 API 若快取 collection handle 會在 ingest 後全部失效。解法是不快取 handle、每次 `get_or_create`。
-- **驗收條款在資料邊界就擋**——`Offer` 模型在 `__post_init__` 強制必填欄位與 source_type 契約，不等到查詢才發現資料殘缺。
+- **Vector search alone has a ceiling for exact merchant names.** Three embedding models in a row failed to rank the Costco clause into the top-k, so retrieval became hybrid: keyword hits are exempt from the distance threshold.
+- **Two lines of defence against hallucination.** The retrieval threshold is a sanity check; the real guard is the prompt instruction to refuse when every hit is irrelevant, plus the pipeline clearing `sources`. `qwen3:8b` turned out to be sensitive to prompt position (a refusal rule in the system role made it refuse everything), so the recipe was found experimentally.
+- **Long-running API vs. batch ingest.** A full rebuild of the ChromaDB collection changes its UUID, so the API never caches the collection handle and calls `get_or_create` per request.
+- **Validate at the data boundary.** The `Offer` model enforces required fields and the `source_type` contract in `__post_init__`, so bad records fail at scrape time rather than at query time.
+- **Fail loudly, not silently.** A source that raises or returns zero rows logs an error and sets a non-zero exit code, while other sources still commit in their own transactions.
 
-## 現況與限制（MVP）
+## Limitations
 
-- **資料非即時**：手動跑爬蟲更新，不做查詢時即時爬取、不做自動排程。
-- **來源涵蓋**：信用卡 3 家、電支 2 家。LINE Pay（優惠全在 app 內 SPA）、玉山（WAF 擋非瀏覽器請求）需 headless browser，列為後續。
-- **循環活動效期**：每月循環的活動抓到的是當期窗口，過期需重跑爬蟲更新。
-- 不做網頁前端、使用者帳號、回饋金額精確試算——Telegram Bot 是唯一介面，LLM 給比較說明不做數學保證。
+- Data is refreshed by running the scrapers manually. There is no scheduler and no live crawl at query time.
+- Sources: three card issuers, three e-payment providers, one community board. LINE Pay (offers live inside an in-app SPA) and E.SUN (WAF blocks non-browser clients) would need a headless browser.
+- Recurring monthly campaigns are captured for the current window only.
+- No web frontend, no user accounts, no exact cashback arithmetic. The LLM explains and compares; it does not guarantee sums.
